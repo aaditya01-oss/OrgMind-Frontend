@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import Login from './Login';
 import './App.css';
 
 const API_URL = 'http://localhost:5147';
@@ -18,8 +19,19 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [orgId] = useState('01');
-  const [userId] = useState('aaditya_001');
+  const [token, setToken] = useState(null);
+  const [userEmail, setUserEmail] = useState('');
+  const [orgId, setOrgId] = useState('01');
+
+  const handleLogin = (authToken, email, org) => {
+    setToken(authToken);
+    setUserEmail(email);
+    if (org) setOrgId(org);
+  };
+
+  if (!token) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -32,9 +44,11 @@ function App() {
     try {
       const response = await axios.post(`${API_URL}/chat`, {
         userMessage: input,
-        userId: userId,
+        userId: userEmail,
         orgId: orgId,
         orgName: 'OrgMind'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       const botMessage = {
@@ -45,7 +59,7 @@ function App() {
     } catch (error) {
       const errorMessage = {
         role: 'assistant',
-        content: 'Error connecting to OrgMind API. Please try again.'
+        content: 'Error connecting to OrgMind API.'
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -64,7 +78,16 @@ function App() {
     <div className="app">
       <header className="header">
         <h1>OrgMind AI</h1>
-        <span className="org-badge">Org: {orgId}</span>
+        <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+          <span className="org-badge">{userEmail}</span>
+          <span className="org-badge">Org: {orgId}</span>
+          <button 
+            onClick={() => setToken(null)}
+            style={{padding: '4px 12px', fontSize: '12px'}}
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       <div className="chat-window">
