@@ -15,6 +15,117 @@ function ChatMessage({ message }) {
   );
 }
 
+
+function FileUpload({ orgId, onClose }) {
+  const [file, setFile] = useState(null)
+  const [uploadType, setUploadType] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  const handleUpload = async () => {
+    if (!file || !uploadType) return
+
+    setLoading(true)
+    setError(null)
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('org_id', orgId)
+    formData.append('doc_name', file.name)
+
+    try {
+      const endpoint = uploadType === 'train' 
+        ? 'http://localhost:8000/documents/train'
+        : 'http://localhost:8000/documents/ocr'
+
+      const response = await axios.post(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      setResult(response.data)
+    } catch (err) {
+      setError('Upload failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="upload-modal">
+      <div className="upload-box">
+        <div className="upload-header">
+          <h3>Attach Document</h3>
+          <button className="close-btn" onClick={onClose}>✕</button>
+        </div>
+
+        {!uploadType && (
+          <div className="upload-options">
+            <p>What would you like to do?</p>
+            <button 
+              className="upload-option-btn"
+              onClick={() => setUploadType('train')}
+            >
+              📚 Train DocMind
+              <span>Feed document to knowledge base</span>
+            </button>
+            <button 
+              className="upload-option-btn"
+              onClick={() => setUploadType('ocr')}
+            >
+              🔍 Scan Document
+              <span>Extract text via OCR</span>
+            </button>
+          </div>
+        )}
+
+        {uploadType && !result && (
+          <div className="upload-form">
+            <p className="upload-type-label">
+              {uploadType === 'train' ? '📚 Training DocMind' : '🔍 Scanning Document'}
+            </p>
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.docx"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="file-input"
+            />
+            {file && <p className="file-name">Selected: {file.name}</p>}
+            {error && <p className="error-message">{error}</p>}
+            <div className="upload-actions">
+              <button onClick={() => setUploadType(null)}>Back</button>
+              <button 
+                onClick={handleUpload} 
+                disabled={!file || loading}
+                className="primary-btn"
+              >
+                {loading ? 'Processing...' : 'Upload'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div className="upload-result">
+            <p className="success">✅ {result.message}</p>
+            {result.extracted_text && (
+              <div className="extracted-text">
+                <p>Extracted Text:</p>
+                <textarea 
+                  readOnly 
+                  value={result.extracted_text}
+                  rows={8}
+                />
+              </div>
+            )}
+            <button onClick={onClose}>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -22,6 +133,7 @@ function App() {
   const [token, setToken] = useState(null);
   const [userEmail, setUserEmail] = useState('');
   const [orgId, setOrgId] = useState('01');
+  const [showUpload, setShowUpload] = useState(false);
 
   const handleLogin = (authToken, email, org) => {
     setToken(authToken);
@@ -109,7 +221,14 @@ function App() {
         )}
       </div>
 
-      <div className="input-area">
+            <div className="input-area">
+        <button 
+          className="attach-btn"
+          onClick={() => setShowUpload(true)}
+          title="Attach document"
+        >
+          📎
+        </button>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -121,6 +240,13 @@ function App() {
           {loading ? 'Sending...' : 'Send'}
         </button>
       </div>
+
+      {showUpload && (
+        <FileUpload 
+          orgId={orgId} 
+          onClose={() => setShowUpload(false)} 
+        />
+      )}
     </div>
   );
 }
