@@ -16,7 +16,7 @@ function ChatMessage({ message }) {
 }
 
 
-function FileUpload({ orgId, onClose }) {
+function FileUpload({token, onClose }) {
   const [file, setFile] = useState(null)
   const [uploadType, setUploadType] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -31,21 +31,15 @@ function FileUpload({ orgId, onClose }) {
 
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('org_id', orgId)
-    formData.append('doc_name', file.name)
 
     try {
-      const endpoint = uploadType === 'train' 
-        ? 'http://localhost:8000/documents/train'
-        : 'http://localhost:8000/documents/ocr'
-
-      const response = await axios.post(endpoint, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const endpoint = uploadType === 'train' ? '/documents/train' : '/documents/ocr'
+      const response = await axios.post(`${API_URL}${endpoint}`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
       })
-
       setResult(response.data)
     } catch (err) {
-      setError('Upload failed. Please try again.')
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Upload failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -86,7 +80,7 @@ function FileUpload({ orgId, onClose }) {
             </p>
             <input
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.docx"
+              accept={uploadType === 'train' ? '.pdf,.docx,.txt' : '.pdf,.png,.jpg,.jpeg'}
               onChange={(e) => setFile(e.target.files[0])}
               className="file-input"
             />
@@ -171,7 +165,9 @@ function App() {
     } catch (error) {
       const errorMessage = {
         role: 'assistant',
-        content: 'Error connecting to OrgMind API.'
+        content: error.response?.status === 429
+          ? 'You are sending messages too quickly. Please wait a moment.'
+          : 'Error connecting to OrgMind API.'
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -244,6 +240,7 @@ function App() {
       {showUpload && (
         <FileUpload 
           orgId={orgId} 
+          token={token}
           onClose={() => setShowUpload(false)} 
         />
       )}
