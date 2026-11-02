@@ -5,6 +5,16 @@ import './App.css';
 
 const API_URL = 'http://localhost:5147';
 
+// Only for showing or hiding buttons. The server checks the role again on every request.
+function roleFromToken(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(payload)).role || 'member'
+  } catch (e) {
+    return 'member'
+  }
+}
+
 function ChatMessage({ message }) {
   return (
     <div className={`message ${message.role}`}>
@@ -24,12 +34,14 @@ function ChatMessage({ message }) {
 }
 
 
-function FileUpload({token, onClose }) {
+function FileUpload({ token, isAdmin, onClose }) {
   const [file, setFile] = useState(null)
   const [uploadType, setUploadType] = useState(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [visibility, setVisibility] = useState('internal')
+  const [department, setDepartment] = useState('')
 
   const handleUpload = async () => {
     if (!file || !uploadType) return
@@ -39,6 +51,10 @@ function FileUpload({token, onClose }) {
 
     const formData = new FormData()
     formData.append('file', file)
+      if (uploadType === 'train') {
+      formData.append('visibility', visibility)
+      formData.append('department', department)
+    }
 
     try {
       const endpoint = uploadType === 'train' ? '/documents/train' : '/documents/ocr'
@@ -46,7 +62,11 @@ function FileUpload({token, onClose }) {
         headers: { Authorization: `Bearer ${token}` }
       })
       setResult(response.data)
-    } catch (err) {
+        } catch (err) {
+      if (err.response?.status === 403) {
+        setError('Only administrators can add documents to the knowledge base.')
+        return
+      }
       setError(err.response?.data?.error || err.response?.data?.detail || 'Upload failed. Please try again.')
     } finally {
       setLoading(false)
@@ -64,13 +84,15 @@ function FileUpload({token, onClose }) {
         {!uploadType && (
           <div className="upload-options">
             <p>What would you like to do?</p>
-            <button 
-              className="upload-option-btn"
-              onClick={() => setUploadType('train')}
-            >
-              📚 Train DocMind
-              <span>Feed document to knowledge base</span>
-            </button>
+              {isAdmin && (
+              <button 
+                className="upload-option-btn"
+                onClick={() => setUploadType('train')}
+              >
+                📚 Train DocMind
+                <span>Feed document to knowledge base</span>
+              </button>
+            )}
             <button 
               className="upload-option-btn"
               onClick={() => setUploadType('ocr')}
@@ -93,6 +115,24 @@ function FileUpload({token, onClose }) {
               className="file-input"
             />
             {file && <p className="file-name">Selected: {file.name}</p>}
+                        {uploadType === 'train' && (
+              <div className="visibility-box">
+                <label>Who can see this document?
+                  <select value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+                    <option value="internal">Everyone in the organization</option>
+                    <option value="public">Public (anyone, even without login)</option>
+                    <option value="registered">Registered users and employees</option>
+                    <option value="department">One department only</option>
+                    <option value="admin_only">Admins only</option>
+                  </select>
+                </label>
+                {visibility === 'department' && (
+                  <label>Department name
+                    <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="e.g. hr" />
+                  </label>
+                )}
+              </div>
+            )}
             {error && <p className="error-message">{error}</p>}
             <div className="upload-actions">
               <button onClick={() => setUploadType(null)}>Back</button>
@@ -321,13 +361,23 @@ function App() {
   const [orgId, setOrgId] = useState('01');
   const [showUpload, setShowUpload] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  
 
   const handleLogin = (authToken, email, org) => {
     setToken(authToken);
     setUserEmail(email);
     if (org) setOrgId(org);
   };
-
+    const handleLogout = () => {
+    setToken(null);
+    setMessages([]);
+    setInput('');
+    setUserEmail('');
+    setOrgId('01');
+    setShowUpload(false);
+    setShowForm(false);
+    setLoading(false);
+  };
   if (!token) {
     return <Login onLogin={handleLogin} />;
   }
@@ -390,7 +440,7 @@ function App() {
             Demo form
           </button>
           <button 
-            onClick={() => setToken(null)}
+            onClick={handleLogout}
             style={{padding: '4px 12px', fontSize: '12px'}}
           >
             Logout
@@ -438,9 +488,10 @@ function App() {
       </div>
 
             {showUpload && (
-        <FileUpload 
+          <FileUpload 
           orgId={orgId} 
           token={token}
+          isAdmin={roleFromToken(token) === 'admin'}
           onClose={() => setShowUpload(false)} 
         />
       )}

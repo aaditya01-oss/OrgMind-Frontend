@@ -419,3 +419,13 @@ button:disabled {
 .found-label { width: 90px; font-size: 13px; color: #94a3b8; }
 .found-value { flex: 1; font-weight: 600; word-break: break-all; }
 .scan-note { font-size: 13px; color: #cbd5e1; margin: 8px 0; }
+
+.visibility-box { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.visibility-box label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #cbd5e1; }
+.visibility-box select, .visibility-box input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f1f5f9;
+}
