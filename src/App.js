@@ -145,7 +145,173 @@ function FileUpload({token, onClose }) {
     </div>
   )
 }
+function ScanToFill({ token, onClose, onFill }) {
+  const [file, setFile] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+  const [copied, setCopied] = useState('')
 
+  const scan = async () => {
+    if (!file) return
+    setLoading(true)
+    setError(null)
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const response = await axios.post(`${API_URL}/documents/ocr`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setResult(response.data)
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Scan failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const card = result?.id_card
+  const fields = card
+    ? [
+        { key: 'fullName', label: 'Name', value: card.name },
+        { key: 'idNumber', label: 'ID number', value: card.student_id },
+        { key: 'validUpto', label: 'Valid until', value: card.valid_upto },
+      ].filter(f => f.value)
+    : []
+
+  const copy = async (field) => {
+    try {
+      await navigator.clipboard.writeText(field.value)
+      setCopied(field.key)
+      setTimeout(() => setCopied(''), 1500)
+    } catch (e) {
+      // clipboard can be blocked by the browser; the value is still on screen to select by hand
+    }
+  }
+
+  const fillForm = () => {
+    const values = {}
+    fields.forEach(f => { values[f.key] = f.value })
+    onFill(values)
+  }
+
+  return (
+    <div className="upload-modal">
+      <div className="upload-box">
+        <div className="upload-header">
+          <h3>Scan a document</h3>
+          <button className="close-btn" onClick={onClose}>✕</button>
+        </div>
+
+        {!result && (
+          <div className="upload-form">
+            <p className="upload-type-label">Choose a photo or PDF of your document</p>
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="file-input"
+            />
+            {file && <p className="file-name">Selected: {file.name}</p>}
+            {error && <p className="error-message">{error}</p>}
+            <p className="scan-note">The scan is not saved. It is only used to fill this form.</p>
+            <div className="upload-actions">
+              <button onClick={onClose}>Cancel</button>
+              <button onClick={scan} disabled={!file || loading} className="primary-btn">
+                {loading ? 'Scanning...' : 'Scan'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div className="upload-result">
+            {fields.length > 0 ? (
+              <>
+                <p className="success">✅ Details found. Check them before using.</p>
+                {fields.map(f => (
+                  <div key={f.key} className="found-field">
+                    <span className="found-label">{f.label}</span>
+                    <span className="found-value">{f.value}</span>
+                    <button onClick={() => copy(f)}>{copied === f.key ? 'Copied' : 'Copy'}</button>
+                  </div>
+                ))}
+                {card.student_id_status === 'corrected' && (
+                  <p className="scan-note">The ID number had a look-alike character corrected. Please verify it.</p>
+                )}
+                {card.needs_review.length > 0 && (
+                  <p className="scan-note">Please check manually: {card.needs_review.join(', ')}</p>
+                )}
+                <div className="upload-actions">
+                  <button onClick={onClose}>Close</button>
+                  <button onClick={fillForm} className="primary-btn">Autofill the form</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="scan-note">
+                  This document type is not recognised yet, so nothing can be filled automatically.
+                  You can copy from the text below.
+                </p>
+                <textarea readOnly value={result.extracted_text || ''} rows={8} />
+                <div className="upload-actions">
+                  <button onClick={onClose}>Close</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ApplicationForm({ token, onClose }) {
+  const [values, setValues] = useState({ fullName: '', idNumber: '', validUpto: '' })
+  const [scanning, setScanning] = useState(false)
+
+  const change = (key) => (e) => setValues(prev => ({ ...prev, [key]: e.target.value }))
+
+  return (
+    <div className="upload-modal">
+      <div className="upload-box">
+        <div className="upload-header">
+          <h3>Application form (demo)</h3>
+          <button className="close-btn" onClick={onClose}>✕</button>
+        </div>
+
+        <button className="scan-btn" onClick={() => setScanning(true)}>📷 Scan document to fill</button>
+
+        <div className="form-fields">
+          <label>Full name
+            <input value={values.fullName} onChange={change('fullName')} />
+          </label>
+          <label>ID number
+            <input value={values.idNumber} onChange={change('idNumber')} />
+          </label>
+          <label>Valid until
+            <input value={values.validUpto} onChange={change('validUpto')} />
+          </label>
+        </div>
+
+        <div className="upload-actions">
+          <button onClick={onClose}>Close</button>
+        </div>
+
+        {scanning && (
+          <ScanToFill
+            token={token}
+            onClose={() => setScanning(false)}
+            onFill={(found) => {
+              setValues(prev => ({ ...prev, ...found }))
+              setScanning(false)
+            }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -154,6 +320,7 @@ function App() {
   const [userEmail, setUserEmail] = useState('');
   const [orgId, setOrgId] = useState('01');
   const [showUpload, setShowUpload] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const handleLogin = (authToken, email, org) => {
     setToken(authToken);
@@ -216,6 +383,12 @@ function App() {
         <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
           <span className="org-badge">{userEmail}</span>
           <span className="org-badge">Org: {orgId}</span>
+          <button
+            onClick={() => setShowForm(true)}
+            style={{padding: '4px 12px', fontSize: '12px'}}
+          >
+            Demo form
+          </button>
           <button 
             onClick={() => setToken(null)}
             style={{padding: '4px 12px', fontSize: '12px'}}
@@ -264,15 +437,18 @@ function App() {
         </button>
       </div>
 
-      {showUpload && (
+            {showUpload && (
         <FileUpload 
           orgId={orgId} 
           token={token}
           onClose={() => setShowUpload(false)} 
         />
       )}
+
+      {showForm && (
+        <ApplicationForm token={token} onClose={() => setShowForm(false)} />
+      )}
     </div>
   );
 }
-
 export default App;

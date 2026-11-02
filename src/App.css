@@ -395,3 +395,27 @@ button:disabled {
   border-color: rgba(245, 158, 11, 0.55);
 }
 .id-card-notice.warn .id-card-title { color: #fcd34d; }
+
+.scan-btn {
+  width: 100%;
+  margin: 8px 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px dashed rgba(99, 102, 241, 0.7);
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+  cursor: pointer;
+}
+.form-fields { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.form-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #cbd5e1; }
+.form-fields input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+  color: #f1f5f9;
+}
+.found-field { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.found-label { width: 90px; font-size: 13px; color: #94a3b8; }
+.found-value { flex: 1; font-weight: 600; word-break: break-all; }
+.scan-note { font-size: 13px; color: #cbd5e1; margin: 8px 0; }
