@@ -377,3 +377,21 @@ button:disabled {
 .sources { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
 .sources-label { opacity: 0.7; }
 .source-chip { padding: 2px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.08); }
+
+.id-card-notice {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  color: #e5e7eb;
+  font-size: 14px;
+}
+.id-card-notice p { margin: 4px 0; color: #e5e7eb; }
+.id-card-notice strong { color: #ffffff; }
+.id-card-notice .id-card-title { font-weight: 600; color: #a5b4fc; }
+.id-card-notice.warn {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.55);
+}
+.id-card-notice.warn .id-card-title { color: #fcd34d; }

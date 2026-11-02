@@ -120,6 +120,24 @@ function FileUpload({token, onClose }) {
                 />
               </div>
             )}
+              {result.id_card && (
+              <div className={`id-card-notice ${result.id_card.needs_review.length > 0 ? 'warn' : ''}`}>
+                <p className="id-card-title">Student ID card detected</p>
+                <p>
+                  ID: <strong>{result.id_card.student_id || 'not readable'}</strong>
+                  {result.id_card.student_id_status === 'corrected' &&
+                    ' (a look-alike character was corrected, please verify)'}
+                </p>
+                <p>Name: <strong>{result.id_card.name || 'not readable'}</strong></p>
+                <p>
+                  Valid until: <strong>{result.id_card.valid_upto || 'not readable'}</strong>
+                  {result.id_card.expired === true && ' (EXPIRED)'}
+                </p>
+                {result.id_card.needs_review.length > 0 && (
+                  <p>Please check manually: {result.id_card.needs_review.join(', ')}</p>
+                )}
+              </div>
+            )}
             <button onClick={onClose}>Done</button>
           </div>
         )}
