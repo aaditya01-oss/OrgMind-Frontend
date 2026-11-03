@@ -352,68 +352,87 @@ function ApplicationForm({ token, onClose }) {
     </div>
   )
 }
+// The organization whose public documents the website chat answers from.
+// Each company that buys OrgMind sets its own id here (REACT_APP_PUBLIC_ORG_ID).
+const PUBLIC_ORG_ID = process.env.REACT_APP_PUBLIC_ORG_ID || '01';
+
+// Sample questions shown to visitors. Later the admin will choose these.
+const FAQ_QUESTIONS = [
+  'What do I need to open a savings account?',
+  'What are the branch opening hours?',
+  'How can I download the mobile banking app?',
+];
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState(null);
   const [userEmail, setUserEmail] = useState('');
-  const [orgId, setOrgId] = useState('01');
+  const [orgId, setOrgId] = useState(PUBLIC_ORG_ID);
   const [showUpload, setShowUpload] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  
+  const [showAuth, setShowAuth] = useState(false);
+
+  const isVisitor = !token;
 
   const handleLogin = (authToken, email, org) => {
     setToken(authToken);
     setUserEmail(email);
     if (org) setOrgId(org);
+    setMessages([]);        // the visitor's chat does not carry over into the account
+    setShowAuth(false);
   };
-    const handleLogout = () => {
+
+  const handleLogout = () => {
     setToken(null);
     setMessages([]);
     setInput('');
     setUserEmail('');
-    setOrgId('01');
+    setOrgId(PUBLIC_ORG_ID);
     setShowUpload(false);
     setShowForm(false);
+    setShowAuth(false);
     setLoading(false);
   };
-  if (!token) {
+
+  if (!token && showAuth) {
     return <Login onLogin={handleLogin} />;
   }
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+  const sendMessage = async (text) => {
+    const question = (typeof text === 'string' ? text : input).trim();
+    if (!question) return;
 
-    const userMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, { role: 'user', content: question }]);
     setInput('');
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/chat`, {
-        userMessage: input,
-        userId: userEmail,
-        orgId: orgId,
-        orgName: 'OrgMind'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      let response;
+      if (isVisitor) {
+        response = await axios.post(`${API_URL}/public/chat`, { message: question, orgId });
+      } else {
+        response = await axios.post(`${API_URL}/chat`, {
+          userMessage: question,
+          userId: userEmail,
+          orgId: orgId,
+          orgName: 'OrgMind'
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
 
-      const botMessage = {
+      setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.data.response,
         sources: response.data.sources || []
-      };
-      setMessages(prev => [...prev, botMessage]);
+      }]);
     } catch (error) {
-      const errorMessage = {
-        role: 'assistant',
-        content: error.response?.status === 429
-          ? 'You are sending messages too quickly. Please wait a moment.'
-          : 'Error connecting to OrgMind API.'
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      let content = 'Error connecting to OrgMind API.';
+      if (error.response?.status === 429) content = 'You are sending messages too quickly. Please wait a moment.';
+      else if (error.response?.status === 400 && error.response?.data?.error) content = error.response.data.error;
+      setMessages(prev => [...prev, { role: 'assistant', content }]);
     } finally {
       setLoading(false);
     }
@@ -431,20 +450,27 @@ function App() {
       <header className="header">
         <h1>OrgMind AI</h1>
         <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-          <span className="org-badge">{userEmail}</span>
-          <span className="org-badge">Org: {orgId}</span>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{padding: '4px 12px', fontSize: '12px'}}
-          >
-            Demo form
-          </button>
-          <button 
-            onClick={handleLogout}
-            style={{padding: '4px 12px', fontSize: '12px'}}
-          >
-            Logout
-          </button>
+          {isVisitor ? (
+            <>
+              <button onClick={() => setShowAuth(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
+                Sign in
+              </button>
+              <button onClick={() => setShowAuth(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
+                Register
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="org-badge">{userEmail}</span>
+              <span className="org-badge">Org: {orgId}</span>
+              <button onClick={() => setShowForm(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
+                Demo form
+              </button>
+              <button onClick={handleLogout} style={{padding: '4px 12px', fontSize: '12px'}}>
+                Logout
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -452,7 +478,14 @@ function App() {
         {messages.length === 0 && (
           <div className="welcome">
             <h2>Welcome to OrgMind</h2>
-            <p>Your secure organizational AI assistant</p>
+            <p>{isVisitor ? 'Ask a question, or pick one below' : 'Your secure organizational AI assistant'}</p>
+            {isVisitor && (
+              <div className="faq-list">
+                {FAQ_QUESTIONS.map(q => (
+                  <button key={q} className="faq-chip" onClick={() => sendMessage(q)}>{q}</button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {messages.map((msg, index) => (
@@ -467,36 +500,39 @@ function App() {
         )}
       </div>
 
-            <div className="input-area">
-        <button 
-          className="attach-btn"
-          onClick={() => setShowUpload(true)}
-          title="Attach document"
-        >
-          📎
-        </button>
+      <div className="input-area">
+        {!isVisitor && (
+          <button
+            className="attach-btn"
+            onClick={() => setShowUpload(true)}
+            title="Attach document"
+          >
+            📎
+          </button>
+        )}
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Ask OrgMind anything..."
+          placeholder={isVisitor ? 'Ask a question...' : 'Ask OrgMind anything...'}
           rows={2}
+          maxLength={500}
         />
         <button onClick={sendMessage} disabled={loading}>
           {loading ? 'Sending...' : 'Send'}
         </button>
       </div>
 
-            {showUpload && (
-          <FileUpload 
-          orgId={orgId} 
+      {!isVisitor && showUpload && (
+        <FileUpload
+          orgId={orgId}
           token={token}
           isAdmin={roleFromToken(token) === 'admin'}
-          onClose={() => setShowUpload(false)} 
+          onClose={() => setShowUpload(false)}
         />
       )}
 
-      {showForm && (
+      {!isVisitor && showForm && (
         <ApplicationForm token={token} onClose={() => setShowForm(false)} />
       )}
     </div>
