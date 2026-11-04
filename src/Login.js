@@ -3,8 +3,12 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:5147';
 
-function Login({ onLogin }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'join' | 'create'
+// Company setup (creating a whole new organization) is not shown to website visitors.
+// For your own testing, open the app with ?setup at the end of the address.
+const SHOW_SETUP = window.location.search.includes('setup');
+
+function Login({ onLogin, onBack, startMode = 'login', orgId }) {
+  const [mode, setMode] = useState(startMode); // 'login' | 'customer' | 'join' | 'create'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -28,6 +32,9 @@ function Login({ onLogin }) {
       if (mode === 'login') {
         endpoint = '/auth/login';
         body = { email, password };
+      } else if (mode === 'customer') {
+        endpoint = '/auth/register-customer';
+        body = { email, password, orgId };
       } else if (mode === 'join') {
         endpoint = '/auth/register';
         body = { email, password, inviteCode };
@@ -55,9 +62,15 @@ function Login({ onLogin }) {
   return (
     <div className="login-container">
       <div className="login-box">
+        {onBack && (
+          <p className="toggle-auth" style={{ textAlign: 'left', marginTop: 0 }}>
+            <span onClick={onBack}>← Back to chat</span>
+          </p>
+        )}
         <h1 className="login-title">OrgMind AI</h1>
         <p className="login-subtitle">
-          {mode === 'login' && 'Sign in to your organization'}
+          {mode === 'login' && 'Sign in to your account'}
+          {mode === 'customer' && 'Create your account'}
           {mode === 'join' && 'Join your organization with an invite code'}
           {mode === 'create' && 'Create a new organization'}
         </p>
@@ -91,19 +104,43 @@ function Login({ onLogin }) {
         <button className="login-button" onClick={handleSubmit} disabled={loading}>
           {loading ? 'Please wait...'
             : mode === 'login' ? 'Sign In'
+            : mode === 'customer' ? 'Create Account'
             : mode === 'join' ? 'Join Organization'
             : 'Create Organization'}
         </button>
 
         <p className="toggle-auth">
-          {mode === 'login' ? (
+          {mode === 'login' && (
             <>
-              New here?
-              <span onClick={() => switchMode('join')}> Join with invite code</span>
+              New customer?
+              <span onClick={() => switchMode('customer')}> Register</span>
               {' · '}
-              <span onClick={() => switchMode('create')}>Create organization</span>
+              <span onClick={() => switchMode('join')}>Employee? Use invite code</span>
+              {SHOW_SETUP && (
+                <>
+                  {' · '}
+                  <span onClick={() => switchMode('create')}>Create organization</span>
+                </>
+              )}
             </>
-          ) : (
+          )}
+          {mode === 'customer' && (
+            <>
+              Already have an account?
+              <span onClick={() => switchMode('login')}> Sign in</span>
+              {' · '}
+              <span onClick={() => switchMode('join')}>Employee? Use invite code</span>
+            </>
+          )}
+          {mode === 'join' && (
+            <>
+              Already have an account?
+              <span onClick={() => switchMode('login')}> Sign in</span>
+              {' · '}
+              <span onClick={() => switchMode('customer')}>Not an employee? Register</span>
+            </>
+          )}
+          {mode === 'create' && (
             <>
               Already have an account?
               <span onClick={() => switchMode('login')}> Sign in</span>

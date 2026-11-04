@@ -373,6 +373,7 @@ function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
 
   const isVisitor = !token;
 
@@ -397,7 +398,7 @@ function App() {
   };
 
   if (!token && showAuth) {
-    return <Login onLogin={handleLogin} />;
+      return <Login onLogin={handleLogin} startMode={authMode} orgId={PUBLIC_ORG_ID} onBack={() => setShowAuth(false)} />;
   }
 
   const sendMessage = async (text) => {
@@ -452,10 +453,10 @@ function App() {
         <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
           {isVisitor ? (
             <>
-              <button onClick={() => setShowAuth(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
+              <button onClick={() => { setAuthMode('login'); setShowAuth(true); }} style={{padding: '4px 12px', fontSize: '12px'}}>
                 Sign in
               </button>
-              <button onClick={() => setShowAuth(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
+              <button onClick={() => { setAuthMode('customer'); setShowAuth(true); }} style={{padding: '4px 12px', fontSize: '12px'}}>
                 Register
               </button>
             </>
