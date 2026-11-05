@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Login from './Login';
 import './App.css';
@@ -185,12 +185,26 @@ function FileUpload({ token, isAdmin, onClose }) {
     </div>
   )
 }
+// The fixed field names every form in OrgMind uses.
+const FORM_FIELDS = [
+  { key: 'fullName', label: 'Full name' },
+  { key: 'idNumber', label: 'ID / citizenship number' },
+  { key: 'dateOfBirth', label: 'Date of birth' },
+  { key: 'fatherName', label: "Father's name" },
+  { key: 'phone', label: 'Phone number', manual: true },
+  { key: 'address', label: 'Address' },
+  { key: 'validUpto', label: 'Valid until' },
+]
+
 function ScanToFill({ token, onClose, onFill }) {
   const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [copied, setCopied] = useState('')
+  const [pickMode, setPickMode] = useState(false)
+  const [assigned, setAssigned] = useState({})
+  const [activeField, setActiveField] = useState('')
 
   const scan = async () => {
     if (!file) return
@@ -210,30 +224,55 @@ function ScanToFill({ token, onClose, onFill }) {
     }
   }
 
+  // Fields the scanner recognized by itself (student ID cards only, for now)
   const card = result?.id_card
-  const fields = card
-    ? [
-        { key: 'fullName', label: 'Name', value: card.name },
-        { key: 'idNumber', label: 'ID number', value: card.student_id },
-        { key: 'validUpto', label: 'Valid until', value: card.valid_upto },
-      ].filter(f => f.value)
-    : []
+  const autoValues = {}
+  if (card?.name) autoValues.fullName = card.name
+  if (card?.student_id) autoValues.idNumber = card.student_id
+  if (card?.valid_upto) autoValues.validUpto = card.valid_upto
+  const hasAuto = Object.keys(autoValues).length > 0
 
-  const copy = async (field) => {
+  // Every non-empty line of the scanned text, for tapping
+  const lines = (result?.extracted_text || '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 1)
+
+  const showPicker = result && (!hasAuto || pickMode)
+
+  const copy = async (key, value) => {
     try {
-      await navigator.clipboard.writeText(field.value)
-      setCopied(field.key)
+      await navigator.clipboard.writeText(value)
+      setCopied(key)
       setTimeout(() => setCopied(''), 1500)
     } catch (e) {
       // clipboard can be blocked by the browser; the value is still on screen to select by hand
     }
   }
 
-  const fillForm = () => {
-    const values = {}
-    fields.forEach(f => { values[f.key] = f.value })
-    onFill(values)
+  const startPicking = () => {
+    setAssigned(autoValues)
+    setActiveField('')
+    setPickMode(true)
   }
+
+    // "नामः राम बहादुर थापा," -> "राम बहादुर थापा"
+  // Cuts the label before a colon (only when the label has no digits, so "10:30" stays whole)
+  // and trailing punctuation. The person can still edit the value in the form.
+  const cleanValue = (line) => {
+    let v = line.replace(/^[^\d:ः]{1,30}[:ः]\s*(?=\S)/, '')
+    v = v.replace(/[\s,;.]+$/, '')
+    return v || line
+  }
+
+  const tapLine = (line) => {
+    if (!activeField) return
+    setAssigned(prev => ({ ...prev, [activeField]: cleanValue(line) }))
+  }
+
+  const fillForm = (values) => onFill(values)
+
+  const assignedCount = Object.keys(assigned).length
 
   return (
     <div className="upload-modal">
@@ -264,41 +303,84 @@ function ScanToFill({ token, onClose, onFill }) {
           </div>
         )}
 
-        {result && (
+        {result && !showPicker && (
           <div className="upload-result">
-            {fields.length > 0 ? (
-              <>
-                <p className="success">✅ Details found. Check them before using.</p>
-                {fields.map(f => (
+            <p className="success">✅ Details found. Check them before using.</p>
+            {FORM_FIELDS.filter(f => autoValues[f.key]).map(f => (
+              <div key={f.key} className="found-field">
+                <span className="found-label">{f.label}</span>
+                <span className="found-value">{autoValues[f.key]}</span>
+                <button onClick={() => copy(f.key, autoValues[f.key])}>{copied === f.key ? 'Copied' : 'Copy'}</button>
+              </div>
+            ))}
+            {card.student_id_status === 'corrected' && (
+              <p className="scan-note">The ID number had a look-alike character corrected. Please verify it.</p>
+            )}
+            {card.needs_review.length > 0 && (
+              <p className="scan-note">Please check manually: {card.needs_review.join(', ')}</p>
+            )}
+            <div className="upload-actions">
+              <button onClick={startPicking}>Pick from the text instead</button>
+              <button onClick={() => fillForm(autoValues)} className="primary-btn">Autofill the form</button>
+            </div>
+          </div>
+        )}
+
+        {result && showPicker && (
+          <div className="upload-result">
+            {!hasAuto && (
+              <p className="scan-note">
+                This document type is not recognised automatically. Choose a field, then tap the line
+                of text that belongs there.
+              </p>
+            )}
+            {hasAuto && <p className="scan-note">Choose a field, then tap the line of text that belongs there.</p>}
+
+            <div className="field-pick">
+              {FORM_FIELDS.filter(f => !f.manual).map(f => (
+                <button
+                  key={f.key}
+                  className={`field-chip ${activeField === f.key ? 'active' : ''} ${assigned[f.key] ? 'done' : ''}`}
+                  onClick={() => setActiveField(f.key)}
+                >
+                  {assigned[f.key] ? '✓ ' : ''}{f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="line-pick">
+              {lines.length === 0 && <p className="scan-note">No text was found in this scan.</p>}
+              {lines.map((line, i) => (
+                <button
+                  key={i}
+                  className="line-chip"
+                  onClick={() => tapLine(line)}
+                  disabled={!activeField}
+                  title={activeField ? 'Use this line' : 'Choose a field first'}
+                >
+                  {line}
+                </button>
+              ))}
+            </div>
+
+            {assignedCount > 0 && (
+              <div className="assigned-box">
+                {FORM_FIELDS.filter(f => assigned[f.key]).map(f => (
                   <div key={f.key} className="found-field">
                     <span className="found-label">{f.label}</span>
-                    <span className="found-value">{f.value}</span>
-                    <button onClick={() => copy(f)}>{copied === f.key ? 'Copied' : 'Copy'}</button>
+                    <span className="found-value">{assigned[f.key]}</span>
+                    <button onClick={() => copy(f.key, assigned[f.key])}>{copied === f.key ? 'Copied' : 'Copy'}</button>
                   </div>
                 ))}
-                {card.student_id_status === 'corrected' && (
-                  <p className="scan-note">The ID number had a look-alike character corrected. Please verify it.</p>
-                )}
-                {card.needs_review.length > 0 && (
-                  <p className="scan-note">Please check manually: {card.needs_review.join(', ')}</p>
-                )}
-                <div className="upload-actions">
-                  <button onClick={onClose}>Close</button>
-                  <button onClick={fillForm} className="primary-btn">Autofill the form</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="scan-note">
-                  This document type is not recognised yet, so nothing can be filled automatically.
-                  You can copy from the text below.
-                </p>
-                <textarea readOnly value={result.extracted_text || ''} rows={8} />
-                <div className="upload-actions">
-                  <button onClick={onClose}>Close</button>
-                </div>
-              </>
+              </div>
             )}
+
+            <div className="upload-actions">
+              <button onClick={onClose}>Close</button>
+              <button onClick={() => fillForm(assigned)} disabled={assignedCount === 0} className="primary-btn">
+                Fill the form
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -307,7 +389,9 @@ function ScanToFill({ token, onClose, onFill }) {
 }
 
 function ApplicationForm({ token, onClose }) {
-  const [values, setValues] = useState({ fullName: '', idNumber: '', validUpto: '' })
+  const [values, setValues] = useState(
+    Object.fromEntries(FORM_FIELDS.map(f => [f.key, '']))
+  )
   const [scanning, setScanning] = useState(false)
 
   const change = (key) => (e) => setValues(prev => ({ ...prev, [key]: e.target.value }))
@@ -323,15 +407,11 @@ function ApplicationForm({ token, onClose }) {
         <button className="scan-btn" onClick={() => setScanning(true)}>📷 Scan document to fill</button>
 
         <div className="form-fields">
-          <label>Full name
-            <input value={values.fullName} onChange={change('fullName')} />
-          </label>
-          <label>ID number
-            <input value={values.idNumber} onChange={change('idNumber')} />
-          </label>
-          <label>Valid until
-            <input value={values.validUpto} onChange={change('validUpto')} />
-          </label>
+          {FORM_FIELDS.map(f => (
+            <label key={f.key}>{f.label}
+              <input value={values[f.key]} onChange={change(f.key)} />
+            </label>
+          ))}
         </div>
 
         <div className="upload-actions">
@@ -348,6 +428,84 @@ function ApplicationForm({ token, onClose }) {
             }}
           />
         )}
+      </div>
+    </div>
+  )
+}
+
+function TicketsPanel({ token, isStaff, onClose }) {
+  const [tickets, setTickets] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const auth = { headers: { Authorization: `Bearer ${token}` } }
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/tickets`, auth)
+        setTickets(response.data)
+      } catch (e) {
+        setError('Could not load tickets.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const changeStatus = async (id, status) => {
+    setError('')
+    try {
+      await axios.patch(`${API_URL}/tickets/${id}/status`, { status }, auth)
+      setTickets(prev => prev.map(t => (t.id === id ? { ...t, status } : t)))
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not change the status.')
+    }
+  }
+
+  return (
+    <div className="upload-modal">
+      <div className="upload-box tickets-box">
+        <div className="upload-header">
+          <h3>{isStaff ? 'All tickets' : 'My tickets'}</h3>
+          <button className="close-btn" onClick={onClose}>✕</button>
+        </div>
+
+        {loading && <p className="scan-note">Loading...</p>}
+        {error && <p className="error-message">{error}</p>}
+        {!loading && tickets.length === 0 && (
+          <p className="scan-note">No tickets yet. Tell the assistant about a problem and it will open one.</p>
+        )}
+
+        <div className="ticket-list">
+          {tickets.map(t => (
+            <div key={t.id} className="ticket-row">
+              <div className="ticket-top">
+                <strong>{t.number}</strong>
+                <span className={`ticket-status ${t.status}`}>{t.status.replace('_', ' ')}</span>
+              </div>
+              <p className="ticket-issue">{t.issue}</p>
+              <p className="scan-note">
+                Priority: {t.priority}
+                {isStaff && <> · From: {t.createdBy}</>}
+                {' · '}{new Date(t.createdAt).toLocaleString()}
+              </p>
+              {isStaff && (
+                <select value={t.status} onChange={(e) => changeStatus(t.id, e.target.value)}>
+                  <option value="open">Open</option>
+                  <option value="in_progress">In progress</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="upload-actions">
+          <button onClick={onClose}>Close</button>
+        </div>
       </div>
     </div>
   )
@@ -372,6 +530,7 @@ function App() {
   const [orgId, setOrgId] = useState(PUBLIC_ORG_ID);
   const [showUpload, setShowUpload] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showTickets, setShowTickets] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState('login');
 
@@ -393,6 +552,7 @@ function App() {
     setOrgId(PUBLIC_ORG_ID);
     setShowUpload(false);
     setShowForm(false);
+    setShowTickets(false);
     setShowAuth(false);
     setLoading(false);
   };
@@ -464,6 +624,9 @@ function App() {
             <>
               <span className="org-badge">{userEmail}</span>
               <span className="org-badge">Org: {orgId}</span>
+              <button onClick={() => setShowTickets(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
+                Tickets
+              </button>
               <button onClick={() => setShowForm(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
                 Demo form
               </button>
@@ -535,6 +698,14 @@ function App() {
 
       {!isVisitor && showForm && (
         <ApplicationForm token={token} onClose={() => setShowForm(false)} />
+      )}
+
+      {!isVisitor && showTickets && (
+        <TicketsPanel
+          token={token}
+          isStaff={['admin', 'member'].includes(roleFromToken(token))}
+          onClose={() => setShowTickets(false)}
+        />
       )}
     </div>
   );

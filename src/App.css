@@ -451,3 +451,97 @@ button:disabled {
 .faq-chip:hover {
   background: rgba(255, 255, 255, 0.14);
 }
+
+.field-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.field-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: inherit;
+  border-radius: 14px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.field-chip.done {
+  border-color: #4caf50;
+}
+
+.field-chip.active {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
+}
+
+.line-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 8px 0;
+}
+
+.line-chip {
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: inherit;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.line-chip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.line-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.assigned-box {
+  margin-top: 8px;
+}
+
+
+.tickets-box {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.ticket-row {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.ticket-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ticket-issue {
+  margin: 6px 0;
+}
+
+.ticket-status {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  text-transform: capitalize;
+}
+
+.ticket-status.open { border-color: #e0a030; }
+.ticket-status.in_progress { border-color: #4a90e2; }
+.ticket-status.resolved { border-color: #4caf50; }
