@@ -545,3 +545,15 @@ button:disabled {
 .ticket-status.open { border-color: #e0a030; }
 .ticket-status.in_progress { border-color: #4a90e2; }
 .ticket-status.resolved { border-color: #4caf50; }
+
+.user-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.user-controls input {
+  flex: 1;
+  min-width: 0;
+}
