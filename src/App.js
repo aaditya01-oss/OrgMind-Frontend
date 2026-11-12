@@ -469,14 +469,14 @@ function TicketsPanel({ token, isStaff, onClose }) {
     <div className="upload-modal">
       <div className="upload-box tickets-box">
         <div className="upload-header">
-          <h3>{isStaff ? 'All tickets' : 'My tickets'}</h3>
+          <h3>{isStaff ? 'All tickets' : 'Tickets'}</h3>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
         {loading && <p className="scan-note">Loading...</p>}
         {error && <p className="error-message">{error}</p>}
         {!loading && tickets.length === 0 && (
-          <p className="scan-note">No tickets yet. Tell the assistant about a problem and it will open one.</p>
+          <p className="scan-note">No tickets to show. Tell the assistant about a problem and it will open one.</p>
         )}
 
         <div className="ticket-list">
@@ -489,10 +489,11 @@ function TicketsPanel({ token, isStaff, onClose }) {
               <p className="ticket-issue">{t.issue}</p>
               <p className="scan-note">
                 Priority: {t.priority}
-                {isStaff && <> · From: {t.createdBy}</>}
+                {' · '}Team: {t.department || 'not assigned yet'}
+                {t.canManage && <> · From: {t.createdBy}</>}
                 {' · '}{new Date(t.createdAt).toLocaleString()}
               </p>
-              {isStaff && (
+              {t.canManage && (
                 <select value={t.status} onChange={(e) => changeStatus(t.id, e.target.value)}>
                   <option value="open">Open</option>
                   <option value="in_progress">In progress</option>
@@ -703,7 +704,7 @@ function App() {
       {!isVisitor && showTickets && (
         <TicketsPanel
           token={token}
-          isStaff={['admin', 'member'].includes(roleFromToken(token))}
+          isStaff={roleFromToken(token) === 'admin'}
           onClose={() => setShowTickets(false)}
         />
       )}
