@@ -109,7 +109,7 @@ export function DocumentsPanel({ token, onClose }) {
                   />
                 )}
                 <button onClick={() => save(d)} disabled={!changed(d)} className="primary-btn">Save</button>
-                <button onClick={() => remove(d)}>Delete</button>
+                <button className="danger-btn" onClick={() => remove(d)}>Delete</button>
               </div>
             </div>
           )

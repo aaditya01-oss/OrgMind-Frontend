@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import { roleFromToken } from './shared';
 
 const AuthContext = createContext(null);
@@ -26,6 +27,22 @@ export function AuthProvider({ children }) {
     setSession(null);
     try { sessionStorage.removeItem(KEY); } catch (e) {}
   };
+    // If the server says the login is no longer valid (expired token), end the session.
+  // The console then sends the person to the sign-in page.
+  useEffect(() => {
+    const id = axios.interceptors.response.use(
+      (response) => response,
+      (err) => {
+        const url = err.config?.url || '';
+        if (err.response?.status === 401 && !url.includes('/auth/')) {
+          setSession(null);
+          try { sessionStorage.removeItem(KEY); } catch (e) {}
+        }
+        return Promise.reject(err);
+      }
+    );
+    return () => axios.interceptors.response.eject(id);
+  }, []);
 
   return <AuthContext.Provider value={{ session, signIn, signOut }}>{children}</AuthContext.Provider>;
 }

@@ -1,0 +1,107 @@
+/* Login and register screen: light card, blue accent, readable text */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(160deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.login-container .login-box {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+  padding: 36px 32px;
+}
+
+.login-container .login-title {
+  margin: 0 0 6px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.login-container .login-subtitle {
+  margin: 0 0 24px;
+  text-align: center;
+  font-size: 15px;
+  color: #475569;
+}
+
+.login-container .form-group {
+  margin-bottom: 14px;
+}
+
+.login-container .form-group input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font-size: 15px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+}
+
+.login-container .form-group input::placeholder {
+  color: #64748b;
+}
+
+.login-container .form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.login-container .login-button {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.login-container .login-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.login-container .login-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-container .toggle-auth {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: #475569;
+}
+
+.login-container .toggle-auth span {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-container .toggle-auth span:hover {
+  text-decoration: underline;
+}
+
+.login-container .error-message {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-size: 14px;
+}
