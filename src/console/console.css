@@ -1,0 +1,119 @@
+.console {
+  display: flex;
+  min-height: 100vh;
+  background: #11131a;
+  color: #e6e8ee;
+}
+
+.console-sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  background: #171a23;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 14px;
+}
+
+.console-brand {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 8px 20px;
+}
+
+.nav-group {
+  margin-bottom: 14px;
+}
+
+.nav-group summary {
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b93a7;
+  padding: 6px 8px;
+}
+
+.nav-link {
+  display: block;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 8px;
+  color: #c9cedb;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-link.active {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.console-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.console-topbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 14px;
+}
+
+.console-content {
+  padding: 24px;
+  max-width: 960px;
+}
+
+/* The chat fills the page area */
+.console-chat {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 110px);
+}
+
+.console-chat .chat-window {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Temporary: the old pop-up screens shown as plain page content */
+.console-page .upload-modal {
+  position: static;
+  inset: auto;
+  display: block;
+  background: none;
+  padding: 0;
+  z-index: auto;
+  width: auto;
+  height: auto;
+}
+
+.console-page .upload-box {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  padding: 0;
+  overflow: visible;
+}
+
+.console-page .close-btn,
+.console-page .upload-actions {
+  display: none;
+}
+
+/* The upload pop-up (Add document) must still float above the page */
+.console-page .upload-modal .upload-modal {
+  position: fixed;
+}
