@@ -7,7 +7,7 @@ const API_URL = 'http://localhost:5147';
 // For your own testing, open the app with ?setup at the end of the address.
 const SHOW_SETUP = window.location.search.includes('setup');
 
-function Login({ onLogin, onBack, startMode = 'login', orgId }) {
+function Login({ onLogin, onBack, startMode = 'login', orgId, staffOnly = false, notice = '' }) {
   const [mode, setMode] = useState(startMode); // 'login' | 'customer' | 'join' | 'create'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,7 +75,7 @@ function Login({ onLogin, onBack, startMode = 'login', orgId }) {
           {mode === 'create' && 'Create a new organization'}
         </p>
 
-        {error && <div className="error-message">{error}</div>}
+          {(error || notice) && <div className="error-message">{error || notice}</div>}
 
         <div className="form-group">
           <input type="email" placeholder="Email address" value={email}
@@ -112,9 +112,13 @@ function Login({ onLogin, onBack, startMode = 'login', orgId }) {
         <p className="toggle-auth">
           {mode === 'login' && (
             <>
-              New customer?
-              <span onClick={() => switchMode('customer')}> Register</span>
-              {' · '}
+              {!staffOnly && (
+                <>
+                  New customer?
+                  <span onClick={() => switchMode('customer')}> Register</span>
+                  {' · '}
+                </>
+              )}
               <span onClick={() => switchMode('join')}>Employee? Use invite code</span>
               {SHOW_SETUP && (
                 <>
@@ -136,8 +140,12 @@ function Login({ onLogin, onBack, startMode = 'login', orgId }) {
             <>
               Already have an account?
               <span onClick={() => switchMode('login')}> Sign in</span>
-              {' · '}
-              <span onClick={() => switchMode('customer')}>Not an employee? Register</span>
+              {!staffOnly && (
+                <>
+                  {' · '}
+                  <span onClick={() => switchMode('customer')}>Not an employee? Register</span>
+                </>
+              )}
             </>
           )}
           {mode === 'create' && (
