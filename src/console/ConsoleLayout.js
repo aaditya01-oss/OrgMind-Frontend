@@ -16,7 +16,8 @@ export default function ConsoleLayout() {
 
         <details open className="nav-group">
           <summary>Workspace</summary>
-          <NavLink end to="/console" className={link}>Assistant</NavLink>
+          <NavLink end to="/console" className={link}>{isAdmin ? 'Overview' : 'My work'}</NavLink>
+          <NavLink to="/console/assistant" className={link}>Ask OrgMind</NavLink>
           <NavLink to="/console/tickets" className={link}>Tickets</NavLink>
         </details>
 
@@ -25,6 +26,7 @@ export default function ConsoleLayout() {
             <summary>Administration</summary>
             <NavLink to="/console/people" className={link}>People</NavLink>
             <NavLink to="/console/knowledge" className={link}>Knowledge base</NavLink>
+            <NavLink to="/console/forms" className={link}>Forms</NavLink>
           </details>
         )}
       </aside>

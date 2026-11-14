@@ -12,8 +12,8 @@ import DemoSite from './DemoSite';
 import { AuthProvider } from './auth';
 import ConsoleLogin from './console/ConsoleLogin';
 import ConsoleLayout from './console/ConsoleLayout';
-import { AdminOnly, AssistantPage, TicketsPage, PeoplePage, KnowledgePage } from './console/pages';
-
+import { AdminOnly, AssistantPage, TicketsPage, PeoplePage, KnowledgePage, HomePage } from './console/pages';
+import FormsPage from './console/FormsPage';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -25,10 +25,12 @@ root.render(
           <Route path="/widget" element={<App />} />
           <Route path="/console/login" element={<ConsoleLogin />} />
           <Route path="/console" element={<ConsoleLayout />}>
-            <Route index element={<AssistantPage />} />
+          <Route index element={<HomePage />} />
+          <Route path="assistant" element={<AssistantPage />} />
             <Route path="tickets" element={<TicketsPage />} />
             <Route path="people" element={<AdminOnly><PeoplePage /></AdminOnly>} />
             <Route path="knowledge" element={<AdminOnly><KnowledgePage /></AdminOnly>} />
+            <Route path="forms" element={<AdminOnly><FormsPage /></AdminOnly>} />
           </Route>
         </Routes>
       </BrowserRouter>
