@@ -14,6 +14,13 @@ import ConsoleLogin from './console/ConsoleLogin';
 import ConsoleLayout from './console/ConsoleLayout';
 import { AdminOnly, AssistantPage, TicketsPage, PeoplePage, KnowledgePage, HomePage } from './console/pages';
 import FormsPage from './console/FormsPage';
+import SubmissionsPage from './console/SubmissionsPage';
+import RequestsPage from './console/RequestsPage';
+import ProfilePage from './console/ProfilePage';
+import TeamPage from './console/TeamPage';
+import MessagesPage from './console/MessagesPage';
+import AuditPage from './console/AuditPage';
+import LibraryPage from './console/LibraryPage';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -28,9 +35,16 @@ root.render(
           <Route index element={<HomePage />} />
           <Route path="assistant" element={<AssistantPage />} />
             <Route path="tickets" element={<TicketsPage />} />
+            <Route path="submissions" element={<SubmissionsPage />} />
+            <Route path="requests" element={<RequestsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="team" element={<TeamPage />} />
+            <Route path="library" element={<LibraryPage />} />
+            <Route path="messages" element={<MessagesPage />} />
             <Route path="people" element={<AdminOnly><PeoplePage /></AdminOnly>} />
             <Route path="knowledge" element={<AdminOnly><KnowledgePage /></AdminOnly>} />
             <Route path="forms" element={<AdminOnly><FormsPage /></AdminOnly>} />
+            <Route path="audit" element={<AdminOnly><AuditPage /></AdminOnly>} />
           </Route>
         </Routes>
       </BrowserRouter>

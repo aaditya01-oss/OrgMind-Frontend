@@ -1,26 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Login from './Login';
 import './App.css';
+import './widget.css';
 import { API_URL, roleFromToken } from './shared';
 import { ChatMessage } from './components/ChatMessage';
 import { FileUpload } from './components/FileUpload';
-import { ApplicationForm } from './components/FormScan';
+import { FormsPanel } from './components/FormsPanel';
 import { TicketsPanel } from './components/TicketsPanel';
-import { UsersPanel } from './components/UsersPanel';
-import { DocumentsPanel } from './components/DocumentsPanel';
-
-
-
-
-
-
-
-
-
-
-
-
 
 // The organization whose public documents the website chat answers from.
 // Each company that buys OrgMind sets its own id here (REACT_APP_PUBLIC_ORG_ID).
@@ -43,12 +30,37 @@ function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showTickets, setShowTickets] = useState(false);
-  const [showUsers, setShowUsers] = useState(false);
-  const [showDocs, setShowDocs] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState('login');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const isVisitor = !token;
+  const role = token ? roleFromToken(token) : null;
+  const canOpenConsole = role === 'admin' || role === 'member';
+
+  // Full screen only exists when the chat sits inside a website's frame.
+  const embedded = window.parent !== window;
+  const [expanded, setExpanded] = useState(false);
+
+  let onPhone = false;
+  try { onPhone = embedded && window.parent.innerWidth <= 480; } catch (e) { onPhone = false; }
+
+  const setFullScreen = (value) => {
+    setExpanded(value);
+    if (embedded) window.parent.postMessage({ type: 'orgmind:expand', value }, window.location.origin);
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        if (expanded) setFullScreen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
 
   const handleLogin = (authToken, email, org) => {
     setToken(authToken);
@@ -67,16 +79,43 @@ function App() {
     setShowUpload(false);
     setShowForm(false);
     setShowTickets(false);
-    setShowUsers(false);
-    setShowDocs(false);
     setShowAuth(false);
+    setMenuOpen(false);
     setLoading(false);
   };
 
   if (!token && showAuth) {
-      return <Login onLogin={handleLogin} startMode={authMode} orgId={PUBLIC_ORG_ID} onBack={() => setShowAuth(false)} />;
+    return <Login onLogin={handleLogin} startMode={authMode} orgId={PUBLIC_ORG_ID} onBack={() => setShowAuth(false)} />;
   }
-
+    // Staff work in the staff console, not on the public website chat.
+  if (canOpenConsole) {
+    return (
+      <div className="app">
+        <header className="w-header">
+          <div className="w-brand">
+            <span className="w-logo">O</span>
+            <div>
+              <strong>OrgMind</strong>
+              <span className="w-tag">Staff account</span>
+            </div>
+          </div>
+        </header>
+        <div className="chat-window">
+          <div className="welcome">
+            <span className="w-logo big">O</span>
+            <h2>You are signed in as staff</h2>
+            <p>Staff work happens in the staff console, not in the public website chat.</p>
+            <div className="w-staff-actions">
+              <button className="primary-btn" onClick={() => window.open('/console', '_blank', 'noopener')}>
+                Open staff console
+              </button>
+              <button onClick={handleLogout}>Sign out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const sendMessage = async (text) => {
     const question = (typeof text === 'string' ? text : input).trim();
     if (!question) return;
@@ -122,44 +161,65 @@ function App() {
     }
   };
 
+  const openFromMenu = (setter) => {
+    setMenuOpen(false);
+    setter(true);
+  };
+
   return (
     <div className="app">
-      <header className="header">
-        <h1>OrgMind AI</h1>
-        <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+      <header className="w-header">
+        <div className="w-brand">
+          <span className="w-logo">O</span>
+          <div>
+            <strong>OrgMind</strong>
+            <span className="w-tag">{isVisitor ? 'Ask us anything' : 'Your secure assistant'}</span>
+          </div>
+        </div>
+
+        <div className="w-actions">
+          {embedded && !onPhone && (
+            <button
+              className="w-icon"
+              onClick={() => setFullScreen(!expanded)}
+              title={expanded ? 'Exit full screen (Esc)' : 'Full screen'}
+              aria-label={expanded ? 'Exit full screen' : 'Full screen'}
+            >
+              {expanded ? '⤡' : '⤢'}
+            </button>
+          )}
+
           {isVisitor ? (
             <>
-              <button onClick={() => { setAuthMode('login'); setShowAuth(true); }} style={{padding: '4px 12px', fontSize: '12px'}}>
+              <button className="w-link" onClick={() => { setAuthMode('login'); setShowAuth(true); }}>
                 Sign in
               </button>
-              <button onClick={() => { setAuthMode('customer'); setShowAuth(true); }} style={{padding: '4px 12px', fontSize: '12px'}}>
+              <button className="w-pill" onClick={() => { setAuthMode('customer'); setShowAuth(true); }}>
                 Register
               </button>
             </>
           ) : (
-            <>
-              <span className="org-badge">{userEmail}</span>
-              <span className="org-badge">Org: {orgId}</span>
-              <button onClick={() => setShowTickets(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
-                Tickets
+            <div className="w-menu-wrap">
+              <button
+                className="w-avatar"
+                onClick={() => setMenuOpen(o => !o)}
+                aria-label="Account menu"
+                aria-expanded={menuOpen}
+              >
+                {(userEmail || '?').charAt(0).toUpperCase()}
               </button>
-              {roleFromToken(token) === 'admin' && (
-              <button onClick={() => setShowUsers(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
-                  Users
-              </button>
+              {menuOpen && (
+                <>
+                  <div className="w-backdrop" onClick={() => setMenuOpen(false)} />
+                  <div className="w-menu" role="menu">
+                    <div className="w-menu-who">{userEmail}</div>
+                    <button onClick={() => openFromMenu(setShowTickets)}>My tickets</button>
+                    <button onClick={() => openFromMenu(setShowForm)}>Forms</button>
+                    <button className="w-menu-out" onClick={handleLogout}>Sign out</button>
+                  </div>
+                </>
               )}
-              {roleFromToken(token) === 'admin' && (
-              <button onClick={() => setShowDocs(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
-                  Documents
-                </button>
-              )}
-              <button onClick={() => setShowForm(true)} style={{padding: '4px 12px', fontSize: '12px'}}>
-                Demo form
-              </button>
-              <button onClick={handleLogout} style={{padding: '4px 12px', fontSize: '12px'}}>
-                Logout
-              </button>
-            </>
+            </div>
           )}
         </div>
       </header>
@@ -167,8 +227,13 @@ function App() {
       <div className="chat-window">
         {messages.length === 0 && (
           <div className="welcome">
-            <h2>Welcome to OrgMind</h2>
-            <p>{isVisitor ? 'Ask a question, or pick one below' : 'Your secure organizational AI assistant'}</p>
+            <span className="w-logo big">O</span>
+            <h2>How can we help?</h2>
+            <p>
+              {isVisitor
+                ? 'Ask a question, or pick one below'
+                : 'Ask a question, report a problem or request a service'}
+            </p>
             {isVisitor && (
               <div className="faq-list">
                 {FAQ_QUESTIONS.map(q => (
@@ -183,8 +248,8 @@ function App() {
         ))}
         {loading && (
           <div className="message assistant">
-            <div className="message-bubble loading">
-              OrgBot is thinking...
+            <div className="message-bubble" aria-label="OrgMind is typing">
+              <span className="typing"><i /><i /><i /></span>
             </div>
           </div>
         )}
@@ -196,6 +261,7 @@ function App() {
             className="attach-btn"
             onClick={() => setShowUpload(true)}
             title="Attach document"
+            aria-label="Attach document"
           >
             📎
           </button>
@@ -208,8 +274,8 @@ function App() {
           rows={2}
           maxLength={500}
         />
-        <button onClick={sendMessage} disabled={loading}>
-          {loading ? 'Sending...' : 'Send'}
+        <button className="send-btn" onClick={sendMessage} disabled={loading} aria-label="Send">
+          ↑
         </button>
       </div>
 
@@ -217,27 +283,21 @@ function App() {
         <FileUpload
           orgId={orgId}
           token={token}
-          isAdmin={roleFromToken(token) === 'admin'}
+          isAdmin={role === 'admin'}
           onClose={() => setShowUpload(false)}
         />
       )}
 
       {!isVisitor && showForm && (
-        <ApplicationForm token={token} onClose={() => setShowForm(false)} />
+      <FormsPanel token={token} onClose={() => setShowForm(false)} />
       )}
 
       {!isVisitor && showTickets && (
         <TicketsPanel
           token={token}
-          isStaff={roleFromToken(token) === 'admin'}
+          isStaff={role === 'admin'}
           onClose={() => setShowTickets(false)}
         />
-      )}
-      {!isVisitor && showUsers && roleFromToken(token) === 'admin' && (
-        <UsersPanel token={token} onClose={() => setShowUsers(false)} />
-      )}
-      {!isVisitor && showDocs && roleFromToken(token) === 'admin' && (
-      <DocumentsPanel token={token} onClose={() => setShowDocs(false)} />
       )}
     </div>
   );

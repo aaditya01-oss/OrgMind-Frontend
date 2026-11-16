@@ -24,7 +24,7 @@ const TYPES = [
 
 // What a scanned document can fill in. The customer side uses these names in the next stage.
 const AUTOFILL = [
-  { value: '', label: 'No' },
+  { value: '', label: 'Not filled by scan' },
   { value: 'full_name', label: 'Full name' },
   { value: 'date_of_birth', label: 'Date of birth' },
   { value: 'father_name', label: 'Father’s name' },
@@ -107,6 +107,8 @@ function FormEditor({ initial, departments, headers, onCancel, onSaved }) {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+    // The scan button shows when at least one question has a scan name. This switch controls that.
+  const [scanOn, setScanOn] = useState(initial.questions.some(q => q.autofill));
 
   const set = (patch) => setForm(prev => ({ ...prev, ...patch }));
   const setQuestion = (i, patch) =>
@@ -127,7 +129,9 @@ function FormEditor({ initial, departments, headers, onCancel, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      const payload = toPayload(form);
+      const payload = toPayload(
+        scanOn ? form : { ...form, questions: form.questions.map(q => ({ ...q, autofill: '' })) }
+      );
       if (form.id) await axios.put(`${API_URL}/admin/forms/${form.id}`, payload, { headers });
       else await axios.post(`${API_URL}/admin/forms`, payload, { headers });
       onSaved();
@@ -188,6 +192,22 @@ function FormEditor({ initial, departments, headers, onCancel, onSaved }) {
           <input type="checkbox" checked={form.active} onChange={(e) => set({ active: e.target.checked })} />
           Form is on (people can fill it)
         </label>
+                <label className="check-row">
+          <input type="checkbox" checked={scanOn} onChange={(e) => setScanOn(e.target.checked)} />
+          Let people scan a document to fill this form
+        </label>
+        {scanOn && (
+          <p className="aside-note">
+            Under each question below, choose what the scan should fill it with. Questions left as
+            “Not filled by scan” are typed by hand.
+          </p>
+        )}
+        {scanOn && !form.questions.some(q => q.autofill) && (
+          <p className="aside-note">
+            No question is set to be filled by the scan yet. Until you choose at least one, people
+            will not see the scan button.
+          </p>
+        )}
       </section>
 
       <section className="aside-card">
@@ -224,12 +244,14 @@ function FormEditor({ initial, departments, headers, onCancel, onSaved }) {
                 <input type="checkbox" checked={q.sensitive} onChange={(e) => setQuestion(i, { sensitive: e.target.checked })} />
                 Sensitive
               </label>
-              <label className="check-row">
-                Fill from scan:
-                <select className="field-input q-autofill" value={q.autofill} onChange={(e) => setQuestion(i, { autofill: e.target.value })}>
-                  {AUTOFILL.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-                </select>
-              </label>
+                            {scanOn && (
+                <label className="check-row">
+                  Scan fills this with:
+                  <select className="field-input q-autofill" value={q.autofill} onChange={(e) => setQuestion(i, { autofill: e.target.value })}>
+                    {AUTOFILL.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                  </select>
+                </label>
+              )}
               <span className="q-actions">
                 <button type="button" className="link-btn" onClick={() => move(i, -1)} disabled={i === 0}>↑</button>
                 <button type="button" className="link-btn" onClick={() => move(i, 1)} disabled={i === form.questions.length - 1}>↓</button>
@@ -321,6 +343,7 @@ export default function FormsPage() {
               <span className="badge">{AUDIENCES.find(a => a.value === f.audience)?.label.split(' (')[0] || f.audience}</span>
               <span className="badge">{f.department ? `Handled by ${f.department}` : 'No department'}</span>
               <span className={f.active ? 'badge on' : 'badge'}>{f.active ? 'Open' : 'Closed'}</span>
+              {(f.fields || []).some(q => q.autofill) && <span className="badge">Scan to fill</span>}
             </div>
             {f.description && <p className="aside-note">{f.description}</p>}
           </div>

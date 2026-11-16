@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { API_URL } from '../shared';
 import { ChatMessage } from '../components/ChatMessage';
@@ -8,6 +8,7 @@ import { FileUpload } from '../components/FileUpload';
 import { TicketsPanel } from '../components/TicketsPanel';
 import { UsersPanel } from '../components/UsersPanel';
 import { DocumentsPanel } from '../components/DocumentsPanel';
+import { eventLabel } from './eventLabels';
 
 const noop = () => {};
 
@@ -78,15 +79,6 @@ const VISIBILITY_LABELS = {
   admin_only: 'Admins only'
 };
 
-const EVENT_LABELS = {
-  LOGIN_SUCCESS: 'Signed in',
-  LOGIN_FAILED: 'Failed sign-in',
-  CONVERSATION: 'Question asked',
-  TICKET_CREATED: 'Ticket created',
-  TICKET_STATUS_CHANGED: 'Ticket status changed',
-  INVITE_CREATED: 'Invite created'
-};
-const eventLabel = (type) => EVENT_LABELS[type] || words(String(type).toLowerCase());
 
 // The server sends UTC times without a "Z"; add it so the browser shows the local time.
 const localTime = (ts) => {
@@ -121,6 +113,7 @@ function AdminHome({ session }) {
   if (!overview) return <p className="aside-note">Loading…</p>;
 
   const totalPeople = overview.usersByRole.reduce((sum, r) => sum + r.count, 0);
+  const adminCount = overview.usersByRole.find(r => r.role === 'admin')?.count || 0;
   const openTickets = overview.ticketsByStatus
     .filter(s => isOpenStatus(s.status))
     .reduce((sum, s) => sum + s.count, 0);
@@ -141,6 +134,15 @@ function AdminHome({ session }) {
   return (
     <div className="home">
       <h2 className="home-title">Overview</h2>
+            {adminCount === 1 && (
+        <section className="aside-card" style={{ borderColor: '#f59e0b' }}>
+          <strong>Only one administrator.</strong>{' '}
+          <span className="aside-note">
+            Requests this administrator sends cannot be handled by anyone else, and nobody can take over if
+            this account is locked out. Add a second administrator.
+          </span>
+        </section>
+      )}
 
       <div className="stat-grid">
         <Link to="/console/people" className="stat-card"><strong>{totalPeople}</strong><span>People</span></Link>
@@ -166,7 +168,10 @@ function AdminHome({ session }) {
         <section className="aside-card">
           <h3>Tickets by status</h3>
           <Rows
-            items={overview.ticketsByStatus.map(s => [words(s.status), s.count])}
+            items={[
+              ...overview.ticketsByStatus.map(s => [words(s.status), s.count]),
+              ...(overview.upsetOpen > 0 ? [['Upset tickets (open)', overview.upsetOpen]] : [])
+            ]}
             empty="No tickets yet."
           />
         </section>
@@ -195,40 +200,79 @@ function AdminHome({ session }) {
 }
 
 function EmployeeHome({ session }) {
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState(null);
+  const [subs, setSubs] = useState(null);
+  const [unread, setUnread] = useState(null);
+  const [me, setMe] = useState(null);
 
   useEffect(() => {
-    axios.get(`${API_URL}/tickets`, { headers: { Authorization: `Bearer ${session.token}` } })
-      .then(r => setTickets(asList(r.data)))
-      .catch(() => setTickets([]));
+    const headers = { Authorization: `Bearer ${session.token}` };
+    axios.get(`${API_URL}/tickets`, { headers }).then(r => setTickets(asList(r.data))).catch(() => setTickets([]));
+    axios.get(`${API_URL}/submissions`, { headers }).then(r => setSubs(Array.isArray(r.data) ? r.data : [])).catch(() => setSubs([]));
+    axios.get(`${API_URL}/chat/channels`, { headers }).then(r => setUnread(r.data.total || 0)).catch(() => setUnread(0));
+    axios.get(`${API_URL}/me`, { headers }).then(r => setMe(r.data)).catch(() => {});
   }, [session.token]);
 
-  const open = tickets ? tickets.filter(t => isOpenStatus(t.status)) : null;
+  const waiting = (s) => s === 'new' || s === 'in_progress';
+  const ticketsForMe = tickets ? tickets.filter(t => t.canManage && isOpenStatus(t.status)) : null;
+  const requestsForMe = subs ? subs.filter(s => s.canManage && waiting(s.status)) : null;
+  const myRequests = subs ? subs.filter(s => s.submittedBy === session.email && waiting(s.status)) : null;
+
+  const count = (list) => (list ? list.length : '–');
 
   return (
     <div className="home">
       <h2 className="home-title">My work</h2>
+      <p className="aside-note">
+        {me?.department ? `${me.department} department` : 'No department yet'}
+        {me?.employeeId ? ` · ${me.employeeId}` : ''}
+      </p>
 
-      <div className="stat-grid two">
-        <Link to="/console/tickets" className="stat-card">
-          <strong>{open ? open.length : '–'}</strong><span>Open tickets</span>
-        </Link>
-        <Link to="/console/assistant" className="stat-card">
-          <strong>?</strong><span>Ask OrgMind a question</span>
-        </Link>
+      <div className="stat-grid">
+        <Link to="/console/tickets" className="stat-card"><strong>{count(ticketsForMe)}</strong><span>Tickets for you</span></Link>
+        <Link to="/console/submissions" className="stat-card"><strong>{count(requestsForMe)}</strong><span>Requests to handle</span></Link>
+        <Link to="/console/requests" className="stat-card"><strong>{count(myRequests)}</strong><span>My open requests</span></Link>
+        <Link to="/console/messages" className="stat-card"><strong>{unread === null ? '–' : unread}</strong><span>Unread messages</span></Link>
       </div>
 
       <section className="aside-card">
-        <h3>Tickets that need you</h3>
-        {open === null && <p className="aside-note">Loading…</p>}
-        {open && open.length === 0 && <p className="aside-note">No open tickets. Everything is handled.</p>}
-        {open && open.slice(0, 6).map((t, i) => (
-          <Link key={t.id || i} to="/console/tickets" className="aside-ticket">
-            <span>{String(t.issue || 'Ticket').slice(0, 90)}</span>
-            <small>{t.priority} · {words(t.status)}</small>
-          </Link>
-        ))}
+        <h3>Quick actions</h3>
+        <div className="edit-grid">
+          <button className="primary-btn"
+                  onClick={() => navigate('/console/assistant', { state: { prefill: 'I want to report a problem: ' } })}>
+            Report a problem
+          </button>
+          <button className="secondary-btn" onClick={() => navigate('/console/requests')}>Send a request</button>
+          <button className="secondary-btn" onClick={() => navigate('/console/assistant')}>Ask a question</button>
+        </div>
       </section>
+
+      <div className="home-grid">
+        <section className="aside-card">
+          <h3>Tickets that need you</h3>
+          {ticketsForMe === null && <p className="aside-note">Loading…</p>}
+          {ticketsForMe && ticketsForMe.length === 0 && <p className="aside-note">No open tickets. Everything is handled.</p>}
+          {ticketsForMe && ticketsForMe.slice(0, 6).map((t, i) => (
+            <Link key={t.id || i} to="/console/tickets" className="aside-ticket">
+              <span>{String(t.issue || 'Ticket').slice(0, 90)}</span>
+              <small>{t.priority} · {words(t.status)}</small>
+            </Link>
+          ))}
+        </section>
+
+        <section className="aside-card">
+          <h3>Requests waiting for you</h3>
+          {requestsForMe === null && <p className="aside-note">Loading…</p>}
+          {requestsForMe && requestsForMe.length === 0 && <p className="aside-note">Nothing is waiting.</p>}
+          {requestsForMe && requestsForMe.slice(0, 6).map(s => (
+            <Link key={s.id} to="/console/submissions" className="aside-ticket">
+              <span>{s.number} · {s.templateName}</span>
+              <small>{s.submittedBy} · {words(s.status)}</small>
+            </Link>
+          ))}
+        </section>
+      </div>
     </div>
   );
 }
@@ -258,8 +302,9 @@ function accessLines(role) {
 
 export function AssistantPage() {
   const { session } = useAuth();
+  const location = useLocation();
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(location.state?.prefill || '');
   const [loading, setLoading] = useState(false);
 
   const isAdmin = session.role === 'admin';

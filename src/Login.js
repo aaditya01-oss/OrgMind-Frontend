@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import './login.css';
 
@@ -8,16 +8,32 @@ const API_URL = 'http://localhost:5147';
 // For your own testing, open the app with ?setup at the end of the address.
 const SHOW_SETUP = window.location.search.includes('setup');
 
+// An invite link looks like  /console/login#invite=CODE . The code sits after the "#", so it is
+// never sent to the server or written in its logs.
+const readInviteFromLink = () => {
+  try {
+    const match = window.location.hash.match(/invite=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  } catch (e) {
+    return '';
+  }
+};
+
 function Login({ onLogin, onBack, startMode = 'login', orgId, staffOnly = false, notice = '' }) {
-  const [mode, setMode] = useState(startMode); // 'login' | 'customer' | 'join' | 'create'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  const [linkInvite] = useState(readInviteFromLink);
+  const [mode, setMode] = useState(linkInvite ? 'join' : startMode); // 'login' | 'customer' | 'join' | 'create'
+  const [inviteCode, setInviteCode] = useState(linkInvite);
   const [orgName, setOrgName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const switchMode = (m) => { setMode(m); setError(''); };
+    // Remove the code from the address bar so it does not stay in the browser history.
+  useEffect(() => {
+    if (linkInvite) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  }, [linkInvite]);
 
   const handleSubmit = async () => {
     if (!email || !password) {

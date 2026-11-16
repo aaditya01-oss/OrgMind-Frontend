@@ -12,8 +12,7 @@ const FORM_FIELDS = [
   { key: 'address', label: 'Address' },
   { key: 'validUpto', label: 'Valid until' },
 ]
-
-function ScanToFill({ token, onClose, onFill }) {
+export function ScanToFill({ token, onClose, onFill }) {
   const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
