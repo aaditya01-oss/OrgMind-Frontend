@@ -1,70 +1,42 @@
-# Getting Started with Create React App
+# OrgMind Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The React app of OrgMind AI. It has two surfaces:
 
-## Available Scripts
+- **Chat widget** (visitors and customers): ask questions, get a ticket raised, fill forms, follow
+  ticket conversations. It runs inside an iframe on a demo company site and can go full screen.
+- **Staff console** (`/console`, employees and admins): tickets, requests, messages, team,
+  knowledge library, and for admins: people and invites (with QR code), knowledge base, forms, audit log.
 
-In the project directory, you can run:
+Customers are never sent to the console. What each person sees is decided by the API from their
+signed token; the screens only reflect it.
 
-### `npm start`
+## What works today
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Chat with sources, scan-to-fill forms, ticket and request conversations with unread markers,
+live updates over WebSocket, staff direct and department messages, people management,
+invite links and QR codes, audit log with filters and CSV download.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Known limits (honest list)
 
-### `npm test`
+- The API address is still written in the code (`src/shared.js`); it should become a setting.
+- Built with Create React App, which is no longer maintained. Moving to Vite is planned.
+- No automated front-end tests yet.
+- English only for now.
+- Mostly tested on desktop; the mobile layout has had little testing.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Run it locally
 
-### `npm run build`
+You need a current Node.js LTS release, and the API running on `http://localhost:5147`.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```powershell
+npm install
+npm start
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+The app opens on `http://localhost:3000`.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Security notes
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- The sign-in token is kept in the browser's session storage and cleared when the tab closes.
+  A 401 answer from the API signs the person out.
+- Invite codes travel in the part of the link after `#`, so they are not sent to servers or logged.
