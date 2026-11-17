@@ -57,6 +57,7 @@ export default function ConsoleLayout() {
             <NavLink to="/console/knowledge" className={link}>Knowledge base</NavLink>
             <NavLink to="/console/forms" className={link}>Forms</NavLink>
             <NavLink to="/console/audit" className={link}>Audit log</NavLink>
+            <NavLink to="/console/company" className={link}>Company</NavLink>
           </details>
         )}
       </aside>

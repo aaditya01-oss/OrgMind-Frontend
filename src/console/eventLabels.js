@@ -21,6 +21,7 @@ const LABELS = {
   FORM_SUBMITTED: 'Form submitted',
   CUSTOMER_JOINED: 'Customer registered',
   ORG_CREATED: 'Organization created',
+  COMPANY_SETTINGS_CHANGED: 'Company setting changed',
   AUDIT_EXPORTED: 'Audit log downloaded'
 };
 

@@ -10,8 +10,15 @@ import { FormsPanel } from './components/FormsPanel';
 import { TicketsPanel } from './components/TicketsPanel';
 
 // The organization whose public documents the website chat answers from.
-// Each company that buys OrgMind sets its own id here (REACT_APP_PUBLIC_ORG_ID).
-const PUBLIC_ORG_ID = process.env.REACT_APP_PUBLIC_ORG_ID || '01';
+// Each company gets its own chat address: /widget?org=COMPANY_ID
+// Add &signup=1 to open the "Create your account" screen first.
+// With no org in the address, the old setting (or '01') is used, as before.
+const urlParams = new URLSearchParams(window.location.search);
+const orgFromUrl = (urlParams.get('org') || '').trim();
+const PUBLIC_ORG_ID = /^[A-Za-z0-9_-]{1,64}$/.test(orgFromUrl)
+  ? orgFromUrl
+  : (process.env.REACT_APP_PUBLIC_ORG_ID || '01');
+const OPEN_SIGNUP = urlParams.get('signup') === '1';
 
 // Sample questions shown to visitors. Later the admin will choose these.
 const FAQ_QUESTIONS = [
@@ -30,8 +37,8 @@ function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showTickets, setShowTickets] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
+  const [showAuth, setShowAuth] = useState(OPEN_SIGNUP);
+  const [authMode, setAuthMode] = useState(OPEN_SIGNUP ? 'customer' : 'login');
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isVisitor = !token;
