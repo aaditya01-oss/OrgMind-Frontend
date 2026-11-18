@@ -22,6 +22,7 @@ const LABELS = {
   CUSTOMER_JOINED: 'Customer registered',
   ORG_CREATED: 'Organization created',
   COMPANY_SETTINGS_CHANGED: 'Company setting changed',
+    FEEDBACK_STATUS_CHANGED: 'Feedback marked',
   AUDIT_EXPORTED: 'Audit log downloaded'
 };
 

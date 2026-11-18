@@ -146,10 +146,11 @@ function App() {
         });
       }
 
-      setMessages(prev => [...prev, {
+        setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.data.response,
-        sources: response.data.sources || []
+        sources: response.data.sources || [],
+        question
       }]);
     } catch (error) {
       let content = 'Error connecting to OrgMind API.';
@@ -251,7 +252,7 @@ function App() {
           </div>
         )}
         {messages.map((msg, index) => (
-          <ChatMessage key={index} message={msg} />
+            <ChatMessage key={index} message={msg} token={token} />
         ))}
         {loading && (
           <div className="message assistant">

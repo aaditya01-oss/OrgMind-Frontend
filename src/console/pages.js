@@ -9,6 +9,7 @@ import { TicketsPanel } from '../components/TicketsPanel';
 import { UsersPanel } from '../components/UsersPanel';
 import { DocumentsPanel } from '../components/DocumentsPanel';
 import { eventLabel } from './eventLabels';
+import './polish.css';
 
 const noop = () => {};
 
@@ -43,8 +44,14 @@ export function KnowledgePage() {
 
   return (
     <div className="console-page">
-      <button className="primary-btn" onClick={() => setAdding(true)}>Add document</button>
-      <DocumentsPanel key={version} token={session.token} onClose={noop} />
+      <div className="kb-head">
+        <div>
+          <h2 className="kb-title">Knowledge base</h2>
+          <p className="kb-sub">The documents your assistant answers from. Each one has a rule for who is allowed to see it.</p>
+        </div>
+        <button className="kb-btn kb-btn-primary" onClick={() => setAdding(true)}>Add document</button>
+      </div>
+      <DocumentsPanel key={version} token={session.token} />
       {adding && (
         <FileUpload
           token={session.token}
@@ -72,13 +79,12 @@ const words = (text) => String(text || '').replace(/_/g, ' ');
 const ROLE_LABELS = { admin: 'Administrators', member: 'Employees', customer: 'Customers' };
 
 const VISIBILITY_LABELS = {
-  public: 'Public',
-  registered: 'Registered users',
-  internal: 'Everyone in the organization',
+  public: 'Anyone',
+  registered: 'Signed-in people',
+  internal: 'Staff only',
   department: 'One department',
   admin_only: 'Admins only'
 };
-
 
 // The server sends UTC times without a "Z"; add it so the browser shows the local time.
 const localTime = (ts) => {
@@ -325,10 +331,11 @@ export function AssistantPage() {
         orgName: 'OrgMind'
       }, { headers: { Authorization: `Bearer ${session.token}` } });
 
-      setMessages(prev => [...prev, {
+          setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.data.response,
-        sources: response.data.sources || []
+        sources: response.data.sources || [],
+        question
       }]);
     } catch (error) {
       const content = error.response?.status === 429
@@ -357,7 +364,7 @@ export function AssistantPage() {
               <p>Answers come from the documents you are allowed to see.</p>
             </div>
           )}
-          {messages.map((m, i) => <ChatMessage key={i} message={m} />)}
+          {messages.map((m, i) => <ChatMessage key={i} message={m} token={session.token} />)}
           {loading && (
             <div className="message assistant">
               <div className="message-bubble loading">OrgBot is thinking...</div>

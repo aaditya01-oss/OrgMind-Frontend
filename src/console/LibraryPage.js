@@ -5,9 +5,9 @@ import { useAuth } from '../auth';
 import { API_URL } from '../shared';
 
 const WHO = {
-  public: 'Everyone',
-  registered: 'Registered users and staff',
-  internal: 'All staff',
+  public: 'Anyone',
+  registered: 'Signed-in people',
+  internal: 'Staff only',
   department: 'Your department',
   admin_only: 'Admins only'
 };

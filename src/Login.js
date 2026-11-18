@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import './login.css';
+import Turnstile, { turnstileEnabled } from './components/Turnstile';
 
 const API_URL = 'http://localhost:5147';
 
@@ -28,8 +29,10 @@ function Login({ onLogin, onBack, startMode = 'login', orgId, staffOnly = false,
   const [orgName, setOrgName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [captcha, setCaptcha] = useState('');
+  const [captchaKey, setCaptchaKey] = useState(0);   // changing it gives a fresh check, because each one works only once
 
-  const switchMode = (m) => { setMode(m); setError(''); };
+   const switchMode = (m) => { setMode(m); setError(''); setCaptcha(''); };
     // Remove the code from the address bar so it does not stay in the browser history.
   useEffect(() => {
     if (linkInvite) window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -38,6 +41,10 @@ function Login({ onLogin, onBack, startMode = 'login', orgId, staffOnly = false,
   const handleSubmit = async () => {
     if (!email || !password) {
       setError('Email and password are required');
+      return;
+    }
+        if (mode === 'customer' && turnstileEnabled && !captcha) {
+      setError('Please complete the human check first.');
       return;
     }
 
@@ -51,7 +58,7 @@ function Login({ onLogin, onBack, startMode = 'login', orgId, staffOnly = false,
         body = { email, password };
       } else if (mode === 'customer') {
         endpoint = '/auth/register-customer';
-        body = { email, password, orgId };
+        body = { email, password, orgId, captchaToken: captcha };
       } else if (mode === 'join') {
         endpoint = '/auth/register';
         body = { email, password, inviteCode };
@@ -66,6 +73,8 @@ function Login({ onLogin, onBack, startMode = 'login', orgId, staffOnly = false,
       onLogin(token, email.trim().toLowerCase(), payload.orgId);
 
     } catch (err) {
+      setCaptcha('');
+      setCaptchaKey((k) => k + 1);
       const data = err.response?.data;
       if (data?.error) setError(data.error);
       else if (err.response?.status === 401) setError('Invalid email or password');
@@ -117,7 +126,7 @@ function Login({ onLogin, onBack, startMode = 'login', orgId, staffOnly = false,
                    onChange={(e) => setOrgName(e.target.value)} />
           </div>
         )}
-
+        {mode === 'customer' && <Turnstile key={captchaKey} onToken={setCaptcha} />}
         <button className="login-button" onClick={handleSubmit} disabled={loading}>
           {loading ? 'Please wait...'
             : mode === 'login' ? 'Sign In'
