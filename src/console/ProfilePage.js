@@ -1,21 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../auth';
 import { API_URL } from '../shared';
 
 const ROLE = { admin: 'Administrator', member: 'Employee', customer: 'Customer' };
 const TABS = [['profile', 'Edit profile'], ['password', 'Password'], ['activity', 'Sign-in activity']];
+const PHOTO_SIZE = 256;
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PICK_BYTES = 8 * 1024 * 1024;   // what a person may pick; it is shrunk to ~30 KB before upload
 
 // The server sends UTC times without a "Z"; add it so the browser shows local time.
+const toDate = (ts) => new Date(/[zZ]$|[+-]\d\d:\d\d$/.test(ts) ? ts : `${ts}Z`);
+
 const localTime = (ts) => {
   if (!ts) return '';
-  const d = new Date(/[zZ]$|[+-]\d\d:\d\d$/.test(ts) ? ts : `${ts}Z`);
+  const d = toDate(ts);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 const memberSince = (ts) => {
   if (!ts) return '';
-  const d = new Date(/[zZ]$|[+-]\d\d:\d\d$/.test(ts) ? ts : `${ts}Z`);
+  const d = toDate(ts);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString([], { dateStyle: 'long' });
 };
 
@@ -32,6 +37,23 @@ function prettyDepartment(name) {
   return name.length <= 3 ? name.toUpperCase() : name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+const CROP_VIEW = 260;   // size of the crop window on screen, in pixels
+
+// Saves the part of the picture inside the crop window as a small square JPEG.
+// x, y = where the picture's top-left corner sits in the window, scale = how big it is drawn.
+function cropToBlob(img, x, y, scale) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = PHOTO_SIZE;
+    canvas.height = PHOTO_SIZE;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, PHOTO_SIZE, PHOTO_SIZE);
+    ctx.drawImage(img, -x / scale, -y / scale, CROP_VIEW / scale, CROP_VIEW / scale, 0, 0, PHOTO_SIZE, PHOTO_SIZE);
+    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty'))), 'image/jpeg', 0.85);
+  });
+}
+
 function GearIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -42,8 +64,168 @@ function GearIcon() {
   );
 }
 
+function CameraIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+// The picture if there is one, otherwise coloured initials.
+function Avatar({ me, photoUrl }) {
+  return (
+    <div className="profile-avatar" aria-hidden="true">
+      {photoUrl ? <img src={photoUrl} alt="" /> : initialsOf(me)}
+    </div>
+  );
+}
+
+// ---- The crop window: drag to move, slider to zoom --------------------------------
+function PhotoCropper({ img, url, busy, onCancel, onUse }) {
+  const baseScale = CROP_VIEW / Math.min(img.naturalWidth, img.naturalHeight);   // fills the window at zoom 1
+  const [zoom, setZoom] = useState(1);
+  const [pos, setPos] = useState(() => ({
+    x: (CROP_VIEW - img.naturalWidth * baseScale) / 2,
+    y: (CROP_VIEW - img.naturalHeight * baseScale) / 2,
+  }));
+  const drag = useRef(null);
+  const scale = baseScale * zoom;
+
+  // The picture may never leave an empty gap inside the window.
+  const clamp = (x, y, s) => ({
+    x: Math.min(0, Math.max(CROP_VIEW - img.naturalWidth * s, x)),
+    y: Math.min(0, Math.max(CROP_VIEW - img.naturalHeight * s, y)),
+  });
+
+  const changeZoom = (value) => {
+    const next = Number(value);
+    const s2 = baseScale * next;
+    const cx = (CROP_VIEW / 2 - pos.x) / scale;   // the spot in the picture under the centre
+    const cy = (CROP_VIEW / 2 - pos.y) / scale;
+    setZoom(next);
+    setPos(clamp(CROP_VIEW / 2 - cx * s2, CROP_VIEW / 2 - cy * s2, s2));
+  };
+
+  const down = (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { px: e.clientX, py: e.clientY, x: pos.x, y: pos.y };
+  };
+  const move = (e) => {
+    if (!drag.current) return;
+    const d = drag.current;
+    setPos(clamp(d.x + e.clientX - d.px, d.y + e.clientY - d.py, scale));
+  };
+  const up = () => { drag.current = null; };
+
+  return (
+    <div className="pf-overlay pf-crop-overlay">
+      <div className="pf-dialog pf-crop-dialog" role="dialog" aria-modal="true" aria-label="Adjust your photo">
+        <div className="pf-dialog-head"><h3>Adjust your photo</h3></div>
+
+        <div className="pf-crop-view" style={{ width: CROP_VIEW, height: CROP_VIEW }}
+             onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+          <img src={url} alt="" draggable={false}
+               style={{ left: pos.x, top: pos.y, width: img.naturalWidth * scale, height: img.naturalHeight * scale }} />
+        </div>
+
+        <p className="profile-hint">Drag to move. Use the slider to zoom.</p>
+        <input type="range" min="1" max="3" step="0.01" value={zoom} className="pf-zoom"
+               onChange={(e) => changeZoom(e.target.value)} aria-label="Zoom" />
+
+        <div className="profile-actions">
+          <button type="button" className="secondary-btn" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button type="button" className="primary-btn" onClick={() => onUse(pos.x, pos.y, scale)} disabled={busy}>
+            {busy ? 'Saving...' : 'Use photo'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Photo controls (inside Edit profile) ----------------------------------------
+function PhotoControl({ me, headers, photoUrl, onPhoto }) {
+  const input = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [crop, setCrop] = useState(null);   // { url, img } while the crop window is open
+
+  const closeCrop = () => {
+    if (crop) URL.revokeObjectURL(crop.url);
+    setCrop(null);
+  };
+
+  const pick = (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';            // so the same file can be chosen again
+    if (!file) return;
+    setError('');
+    if (!PHOTO_TYPES.includes(file.type)) { setError('Please choose a JPG, PNG or WebP picture.'); return; }
+    if (file.size > MAX_PICK_BYTES) { setError('That picture is too large. Please choose one under 8 MB.'); return; }
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => setCrop({ url, img });
+    img.onerror = () => { URL.revokeObjectURL(url); setError('That file could not be read as a picture.'); };
+    img.src = url;
+  };
+
+  const use = async (x, y, scale) => {
+    setBusy(true);
+    try {
+      const blob = await cropToBlob(crop.img, x, y, scale);
+      await axios.put(`${API_URL}/me/avatar`, blob, { headers: { ...headers, 'Content-Type': 'image/jpeg' } });
+      onPhoto(URL.createObjectURL(blob));
+      closeCrop();
+    } catch (err) {
+      closeCrop();
+      setError(err.response?.data?.error || 'Could not use that picture. Please try another one.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await axios.delete(`${API_URL}/me/avatar`, { headers });
+      onPhoto(null);
+    } catch (err) {
+      setError('Could not remove the picture.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pf-photo">
+      <Avatar me={me} photoUrl={photoUrl} />
+      <div className="pf-photo-side">
+        <div className="pf-photo-buttons">
+          <button type="button" className="secondary-btn" onClick={() => input.current.click()} disabled={busy}>
+            {photoUrl ? 'Change photo' : 'Upload photo'}
+          </button>
+          {photoUrl && (
+            <button type="button" className="secondary-btn" onClick={remove} disabled={busy}>Remove</button>
+          )}
+        </div>
+        <p className="profile-hint">JPG, PNG or WebP. You can move and zoom it before saving.</p>
+        {error && <p className="profile-hint bad">{error}</p>}
+        <input ref={input} type="file" accept="image/jpeg,image/png,image/webp"
+               onChange={pick} style={{ display: 'none' }} />
+      </div>
+
+      {crop && <PhotoCropper img={crop.img} url={crop.url} busy={busy} onCancel={closeCrop} onUse={use} />}
+    </div>
+  );
+}
+
 // ---- Tab 1: edit profile ----------------------------------------------------
-function EditProfile({ me, headers, onSaved }) {
+function EditProfile({ me, headers, onSaved, photoUrl, onPhoto }) {
   const fromMe = (m) => ({
     displayName: m.displayName || '', jobTitle: m.jobTitle || '', phone: m.phone || '', bio: m.bio || '',
   });
@@ -71,43 +253,47 @@ function EditProfile({ me, headers, onSaved }) {
   };
 
   return (
-    <form onSubmit={submit} className="profile-form">
-      {ok && <p className="profile-ok">Saved.</p>}
-      {error && <p className="error-message">{error}</p>}
+    <>
+      <PhotoControl me={me} headers={headers} photoUrl={photoUrl} onPhoto={onPhoto} />
 
-      <div className="pf-two">
-        <div>
-          <label className="field-label">Display name</label>
-          <input className="field-input" value={form.displayName} onChange={set('displayName')}
-                 maxLength={60} placeholder="How your name should appear" />
+      <form onSubmit={submit} className="profile-form">
+        {ok && <p className="profile-ok">Saved.</p>}
+        {error && <p className="error-message">{error}</p>}
+
+        <div className="pf-two">
+          <div>
+            <label className="field-label">Display name</label>
+            <input className="field-input" value={form.displayName} onChange={set('displayName')}
+                   maxLength={60} placeholder="How your name should appear" />
+          </div>
+          <div>
+            <label className="field-label">Job title</label>
+            <input className="field-input" value={form.jobTitle} onChange={set('jobTitle')}
+                   maxLength={60} placeholder="e.g. Support lead" />
+          </div>
         </div>
-        <div>
-          <label className="field-label">Job title</label>
-          <input className="field-input" value={form.jobTitle} onChange={set('jobTitle')}
-                 maxLength={60} placeholder="e.g. Support lead" />
+
+        <label className="field-label">Phone (optional)</label>
+        <input className="field-input" value={form.phone} onChange={set('phone')}
+               maxLength={30} placeholder="+977 98..." inputMode="tel" />
+
+        <label className="field-label">Bio</label>
+        <textarea className="field-input" rows={4} value={form.bio} onChange={set('bio')}
+                  maxLength={300} placeholder="A few words about you and what you do." />
+        <p className="pf-count">{form.bio.length} / 300</p>
+
+        <div className="pf-locked">
+          <strong>{me.email}</strong> &middot; {ROLE[me.role] || me.role} &middot; {prettyDepartment(me.department)}
+          <br />Your email, role and department are managed by an administrator.
         </div>
-      </div>
 
-      <label className="field-label">Phone (optional)</label>
-      <input className="field-input" value={form.phone} onChange={set('phone')}
-             maxLength={30} placeholder="+977 98..." inputMode="tel" />
-
-      <label className="field-label">Bio</label>
-      <textarea className="field-input" rows={4} value={form.bio} onChange={set('bio')}
-                maxLength={300} placeholder="A few words about you and what you do." />
-      <p className="pf-count">{form.bio.length} / 300</p>
-
-      <div className="pf-locked">
-        <strong>{me.email}</strong> &middot; {ROLE[me.role] || me.role} &middot; {prettyDepartment(me.department)}
-        <br />Your email, role and department are managed by an administrator.
-      </div>
-
-      <div className="profile-actions">
-        <button type="submit" className="primary-btn" disabled={busy || !dirty}>
-          {busy ? 'Saving...' : 'Save changes'}
-        </button>
-      </div>
-    </form>
+        <div className="profile-actions">
+          <button type="submit" className="primary-btn" disabled={busy || !dirty}>
+            {busy ? 'Saving...' : 'Save changes'}
+          </button>
+        </div>
+      </form>
+    </>
   );
 }
 
@@ -214,11 +400,27 @@ export default function ProfilePage() {
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState('profile');
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const photoRef = useRef(null);
+
+  // Keep the newest picture address so it can be released when leaving the page.
+  const showPhoto = (url) => {
+    if (photoRef.current) URL.revokeObjectURL(photoRef.current);
+    photoRef.current = url;
+    setPhotoUrl(url);
+  };
 
   useEffect(() => {
     axios.get(`${API_URL}/me`, { headers })
       .then(r => setMe(r.data))
       .catch(() => setFailed(true));
+
+    // 204 means "no picture yet".
+    axios.get(`${API_URL}/me/avatar`, { headers, responseType: 'blob' })
+      .then(r => { if (r.status === 200 && r.data.size > 0) showPhoto(URL.createObjectURL(r.data)); })
+      .catch(() => { /* initials are shown instead */ });
+
+    return () => { if (photoRef.current) URL.revokeObjectURL(photoRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -247,7 +449,10 @@ export default function ProfilePage() {
         <div className="profile-grid">
           <section className="aside-card profile-card">
             <div className="profile-top">
-              <div className="profile-avatar" aria-hidden="true">{initialsOf(me)}</div>
+              <button className="pf-avatar-btn" onClick={() => openSettings('profile')} title="Change photo">
+                <Avatar me={me} photoUrl={photoUrl} />
+                <span className="pf-cam"><CameraIcon /></span>
+              </button>
               <div className="pf-name">{me.displayName || me.email}</div>
               {me.jobTitle && <div className="pf-title">{me.jobTitle}</div>}
               <span className={`profile-role ${me.role}`}>{ROLE[me.role] || me.role}</span>
@@ -296,7 +501,9 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {tab === 'profile' && <EditProfile me={me} headers={headers} onSaved={setMe} />}
+            {tab === 'profile' && (
+              <EditProfile me={me} headers={headers} onSaved={setMe} photoUrl={photoUrl} onPhoto={showPhoto} />
+            )}
             {tab === 'password' && <PasswordForm headers={headers} signOut={signOut} />}
             {tab === 'activity' && <Activity headers={headers} />}
           </div>

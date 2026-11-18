@@ -2,6 +2,7 @@ import { Fragment, useState, useEffect } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 import { API_URL } from '../shared';
+import { PersonAvatar } from './PersonAvatar';
 
 const NO_DEPT = '__none__';
 
@@ -234,7 +235,17 @@ export function UsersPanel({ token }) {
               {list.map(u => (
                 <Fragment key={u.id}>
                   <tr>
-                    <td><strong>{u.email}</strong></td>
+                                        <td>
+                      <div className="people-who">
+                        <PersonAvatar email={u.email} name={u.displayName || u.email} token={token} size={34} />
+                        <div>
+                          <strong>{u.email}</strong>
+                          {(u.displayName || u.jobTitle) && (
+                            <small className="muted">{[u.displayName, u.jobTitle].filter(Boolean).join(' \u00B7 ')}</small>
+                          )}
+                        </div>
+                      </div>
+                    </td>
                     <td><span className={u.role === 'admin' ? 'badge on' : 'badge'}>{u.role === 'admin' ? 'Admin' : 'Employee'}</span></td>
                     <td>{u.department || '—'}</td>
                     <td>{u.employeeId || '—'}</td>
