@@ -22,6 +22,7 @@ export default function MessagesPage() {
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [card, setCard] = useState(null);           // email of the person whose profile card is open
+  const [copiedId, setCopiedId] = useState(null);
   const listRef = useRef(null);
 
   const auth = useCallback(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
@@ -87,6 +88,42 @@ export default function MessagesPage() {
       setError(err.response?.data?.error || 'Could not send the message.');
     } finally {
       setSending(false);
+    }
+  };
+
+  // ---- message actions ----
+  const copyText = async (m) => {
+    try {
+      await navigator.clipboard.writeText(m.body);
+      setCopiedId(m.id);
+      setTimeout(() => setCopiedId(id => (id === m.id ? null : id)), 1500);
+    } catch (e) {
+      setError('Could not copy. Select the text and copy it by hand.');
+    }
+  };
+
+  const removeForEveryone = async (m) => {
+    const question = m.fromYou
+      ? 'Unsend this message? It will be removed for everyone.'
+      : 'Remove this message for everyone in the group? This is recorded in the audit log.';
+    if (!window.confirm(question)) return;
+    setError('');
+    try {
+      await axios.delete(`${API_URL}/chat/message/${m.id}`, auth());
+      loadMessages(active);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not remove the message.');
+    }
+  };
+
+  const hideForMe = async (m) => {
+    if (!window.confirm('Delete this message for you only? Other people will still see it.')) return;
+    setError('');
+    try {
+      await axios.post(`${API_URL}/chat/message/${m.id}/hide`, {}, auth());
+      setMessages(prev => prev.filter(x => x.id !== m.id));
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not delete the message.');
     }
   };
 
@@ -174,7 +211,22 @@ export default function MessagesPage() {
                       {' \u00B7 '}
                       {asUtc(m.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                     </small>
-                    <p>{m.body}</p>
+
+                    {m.removed
+                      ? <p className="thread-removed">{m.removedByAdmin ? 'Removed by an admin' : 'This message was removed'}</p>
+                      : <p>{m.body}</p>}
+
+                    <div className="thread-actions">
+                      {!m.removed && (
+                        <button onClick={() => copyText(m)}>{copiedId === m.id ? 'Copied' : 'Copy'}</button>
+                      )}
+                      {!m.removed && m.canRemove && (
+                        <button className="danger" onClick={() => removeForEveryone(m)}>
+                          {m.fromYou ? 'Unsend' : 'Remove'}
+                        </button>
+                      )}
+                      <button onClick={() => hideForMe(m)}>Delete for me</button>
+                    </div>
                   </div>
                 ))}
               </div>
