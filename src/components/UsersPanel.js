@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { API_URL } from '../shared';
 import { PersonAvatar } from './PersonAvatar';
 import { DepartmentsDrawer, prettyDepartment as pretty } from './DepartmentsDrawer';
+import { ResetPassword } from './ResetPassword';
 
 const NO_DEPT = '__none__';
 
@@ -82,7 +83,7 @@ export function UsersPanel({ token }) {
 
   const save = (u) =>
     update(u, { department: draft.department, employeeId: draft.employeeId },
-      `${u.email} updated. The change applies the next time they sign in.`);
+      `${u.email} updated. They will be asked to sign in again.`);
 
   const setAdmin = (u, makeAdmin) => {
     const question = makeAdmin
@@ -91,8 +92,8 @@ export function UsersPanel({ token }) {
     if (!window.confirm(question)) return;
     update(u, { role: makeAdmin ? 'admin' : 'member' },
       makeAdmin
-        ? `${u.email} is now an admin. It applies the next time they sign in.`
-        : `${u.email} is now an employee. It applies the next time they sign in.`);
+        ? `${u.email} is now an admin. They will be asked to sign in again.`
+        : `${u.email} is now an employee. They will be asked to sign in again.`);
   };
 
   // ---- invites ----
@@ -291,8 +292,9 @@ export function UsersPanel({ token }) {
                           <button className="primary-btn" onClick={() => save(u)} disabled={!dirty(u)}>Save</button>
                           {u.role === 'admin'
                             ? <button className="secondary-btn" onClick={() => setAdmin(u, false)}>Remove admin rights</button>
-                            : <button className="secondary-btn" onClick={() => setAdmin(u, true)}>Make admin</button>}
+                                                        : <button className="secondary-btn" onClick={() => setAdmin(u, true)}>Make admin</button>}
                         </div>
+                        <ResetPassword key={u.id} user={u} token={token} />
                       </td>
                     </tr>
                   )}

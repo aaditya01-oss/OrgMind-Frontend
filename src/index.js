@@ -20,6 +20,7 @@ import ProfilePage from './console/ProfilePage';
 import TeamPage from './console/TeamPage';
 import MessagesPage from './console/MessagesPage';
 import AuditPage from './console/AuditPage';
+import AccessReviewPage from './console/AccessReviewPage';
 import LibraryPage from './console/LibraryPage';
 import CompanyPage from './console/CompanyPage';
 
@@ -46,6 +47,7 @@ root.render(
             <Route path="knowledge" element={<AdminOnly><KnowledgePage /></AdminOnly>} />
             <Route path="forms" element={<AdminOnly><FormsPage /></AdminOnly>} />
             <Route path="audit" element={<AdminOnly><AuditPage /></AdminOnly>} />
+            <Route path="access-review" element={<AdminOnly><AccessReviewPage /></AdminOnly>} />
             <Route path="company" element={<CompanyPage />} />
           </Route>
         </Routes>
