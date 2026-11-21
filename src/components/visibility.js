@@ -1,4 +1,5 @@
 import './knowledge.css';
+import { DepartmentSelect } from './departmentPicker';
 
 export const VISIBILITY = [
   { value: 'public', label: 'Anyone', help: 'Everyone who opens your chat, even without signing in.' },
@@ -18,7 +19,7 @@ export function VisibilityBadge({ value, department }) {
   return <span className={`kb-badge ${value}`}>{text}</span>;
 }
 
-export function VisibilityPicker({ value, onChange, department, onDepartment }) {
+export function VisibilityPicker({ value, onChange, department, onDepartment, departments = [] }) {
   return (
     <div>
       {VISIBILITY.map(o => (
@@ -37,13 +38,8 @@ export function VisibilityPicker({ value, onChange, department, onDepartment }) 
       ))}
       {value === 'department' && (
         <div>
-          <input
-            className="kb-input"
-            value={department}
-            onChange={(e) => onDepartment(e.target.value)}
-            placeholder="Department name, e.g. hr"
-          />
-          <p className="kb-help">Type it exactly as it appears in People (for example hr or it).</p>
+                    <DepartmentSelect className="kb-select" value={department} names={departments} onChange={onDepartment} />
+          <p className="kb-help">Choose from your departments. Add or rename them under People, Departments.</p>
         </div>
       )}
     </div>

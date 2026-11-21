@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../shared';
 import { VISIBILITY, VisibilityBadge, visibilityOf } from './visibility';
+import { DepartmentSelect, useDepartmentNames } from './departmentPicker';
 import './knowledge.css';
 
 export function DocumentsPanel({ token }) {
@@ -10,6 +11,7 @@ export function DocumentsPanel({ token }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
+  const departments = useDepartmentNames(token);
 
   const auth = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -109,11 +111,11 @@ export function DocumentsPanel({ token }) {
                   ))}
                 </select>
                 {x.visibility === 'department' && (
-                  <input
-                    className="kb-input"
+                  <DepartmentSelect
+                    className="kb-select"
                     value={x.department}
-                    onChange={(e) => edit(d, { department: e.target.value })}
-                    placeholder="department, e.g. hr"
+                    names={departments}
+                    onChange={(v) => edit(d, { department: v })}
                   />
                 )}
                 <button className="kb-btn kb-btn-primary" onClick={() => save(d)} disabled={!changed(d)}>Save</button>

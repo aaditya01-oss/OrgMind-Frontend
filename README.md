@@ -1,3 +1,5 @@
+> Part of the **OrgMind AI** platform (AI engine, API, website). For the architecture, the security design and how to run all of it with one command, see [OrgMind-Stack](https://github.com/aaditya01-oss/OrgMind-Stack).
+
 # OrgMind Frontend
 
 The React app of OrgMind AI. It has two surfaces:

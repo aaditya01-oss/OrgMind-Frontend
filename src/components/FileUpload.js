@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../shared';
 import { VisibilityPicker } from './visibility';
+import { useDepartmentNames } from './departmentPicker';
 import './knowledge.css';
 
 export function FileUpload({ token, isAdmin, onClose }) {
@@ -12,6 +13,7 @@ export function FileUpload({ token, isAdmin, onClose }) {
   const [error, setError] = useState(null);
   const [visibility, setVisibility] = useState('internal');
   const [department, setDepartment] = useState('');
+  const departments = useDepartmentNames(token, isAdmin);
 
   const training = uploadType === 'train';
   const missingDepartment = training && visibility === 'department' && !department.trim();
@@ -95,6 +97,7 @@ export function FileUpload({ token, isAdmin, onClose }) {
                   onChange={setVisibility}
                   department={department}
                   onDepartment={setDepartment}
+                  departments={departments}
                 />
               </>
             )}

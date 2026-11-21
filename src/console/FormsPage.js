@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../auth';
 import { API_URL } from '../shared';
+import { DepartmentSelect } from '../components/departmentPicker';
 
 const AUDIENCES = [
   { value: 'customer', label: 'Customers (registered users)' },
@@ -167,13 +168,10 @@ function FormEditor({ initial, departments, headers, onCancel, onSaved }) {
             </select>
           </div>
           <div>
-            <label className="field-label">Department that handles it</label>
-            <input className="field-input" list="department-list" value={form.department} maxLength={50}
-                   onChange={(e) => set({ department: e.target.value })}
-                   placeholder="e.g. it, hr" />
-            <datalist id="department-list">
-              {departments.map(d => <option key={d} value={d} />)}
-            </datalist>
+                        <label className="field-label">Department that handles it</label>
+            <DepartmentSelect value={form.department} names={departments}
+                              onChange={(v) => set({ department: v })}
+                              placeholder="No department (admins only)" />
           </div>
         </div>
 
